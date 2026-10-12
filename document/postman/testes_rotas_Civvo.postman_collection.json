@@ -1,0 +1,130 @@
+{
+  "info": {
+    "_postman_id": "ffca3aaf-e25c-44d2-91c3-ec07d25a585e",
+    "name": "testes_rotas_Civvo",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "43598046"
+  },
+  "item": [
+    {
+      "name": "cadastro_ONG",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"contato@aacd.org.br\",\n  \"password\": \"SenhaSegura123\",\n  \"cnpj\": \"60979457000111\",\n  \"logo_url\": \"https://picsum.photos/200?5\",\n  \"banner_url\": \"https://picsum.photos/800/300?5\",\n  \"historia\": \"Reabilitação e inclusão social de pessoas com deficiência física.\",\n  \"causas_atendidas\": \"Reabilitação, Saúde\",\n  \"chave_pix\": \"60979457000111\",\n  \"nivel_transparencia\": \"Alto\",\n  \"telefone\": { \"ddd\": \"11\", \"numero\": \"55760000\", \"is_whatsapp\": true },\n  \"endereco_customizado\": { \"rua\": \"Av. Prof. Ascendino Reis, 724\", \"bairro\": \"Vila Clementino\", \"cidade\": \"São Paulo\", \"estado\": \"SP\", \"cep\": \"04027000\" }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "localhost:8080/api/ong/register/ong",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "ong",
+            "register",
+            "ong"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "login_ONG",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"email\": \"contato@aacd.org.br\", \"password\": \"SenhaSegura123\" }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "localhost:8080/api/ong/login/ong",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "ong",
+            "login",
+            "ong"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "login_Doador",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"email\": \"bruno.martins@email.com\", \"password\": \"SenhaSegura123\" }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/login",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "cadastro_Doador",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"bruno.martins@email.com\",\n  \"password\": \"SenhaSegura123\",\n  \"nome\": \"Bruno\",\n  \"sobrenome\": \"Martins\",\n  \"apelido_unico\": \"brunomartins\",\n  \"cpf\": \"89012345672\",\n  \"avatar_url\": \"https://picsum.photos/200?d8\",\n  \"bio\": \"Colaborador em campanhas de arrecadação de agasalhos.\",\n  \"cadunico_file\": null\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "localhost:8080/api/auth/register/doador",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "auth",
+            "register",
+            "doador"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

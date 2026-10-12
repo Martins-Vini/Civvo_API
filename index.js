@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
-import {pool} from "./src/config/conexao.js";
 import rotasAuth from "./src/routes/authRoutes.js";
+import ongRoutes from './src/routes/ongRoutes.js';
 const server = express();
 const door = 8080;
 
@@ -13,8 +13,10 @@ server.get("/teste", (req,res)=>{
 });
 
 server.use("/api/auth", rotasAuth);
+server.use("/api/ong", ongRoutes);
 
 const PORT = process.env.PORT || door;
+
 server.listen(PORT, ()=>{
     console.log(`Servidor ligado na rota http://localhost:${PORT}`);
 });
