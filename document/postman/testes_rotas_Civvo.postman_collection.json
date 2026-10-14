@@ -125,6 +125,82 @@
         }
       },
       "response": []
+    },
+    {
+      "name": "cadastro_admin",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{json_web_token_0fvj}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"novo.compliance@civvo.org\",\n  \"password\": \"SenhaAdminSegura123\",\n  \"nome_completo\": \"Carla Mendes\",\n  \"cargo\": \"Analista Sênior de Compliance\",\n  \"role_level\": \"COMPLIANCE\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/admin/register",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "admin",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "login_admin",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"superadmin@civvo.org\",\n  \"password\": \"SenhaSuperAdmin123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/admin/login",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "admin",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "json_web_token_0fvj",
+      "secret": true
     }
   ]
 }

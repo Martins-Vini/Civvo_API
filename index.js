@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import rotasAuth from "./src/routes/authRoutes.js";
 import ongRoutes from './src/routes/ongRoutes.js';
+import adminRoutes from './src/routes/adminRoutes.js';
 const server = express();
 const door = 8080;
 
@@ -14,6 +15,7 @@ server.get("/teste", (req,res)=>{
 
 server.use("/api/auth", rotasAuth);
 server.use("/api/ong", ongRoutes);
+server.use('/api/admin', adminRoutes);
 
 const PORT = process.env.PORT || door;
 
