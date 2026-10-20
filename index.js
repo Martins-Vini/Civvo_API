@@ -7,7 +7,10 @@ const server = express();
 const door = 8080;
 
 server.use(express.json());
-server.use(cors());
+server.use(cors({
+  origin: ['http://localhost:5173/', 'https://civvoprojeto.vercel.app/'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+}));
 
 server.get("/teste", (req,res)=>{
     res.json({message: "Servidor rodando com sucesso!"})
