@@ -1,52 +1,108 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import DoadorModel from '../models/donorModel.js';
+import { CodeModel } from '../models/codeModel.js';
+import { enviarCodigoEmail } from '../services/emailService.js';
 
 class AuthController {
-    static async registerDoador(req, res) {
+    
+    // ETAPA 1 DO CADASTRO: Valida se o email existe e envia o código de 6 dígitos
+    static async solicitarCadastroDoador(req, res) {
         try {
-            const { email, password, nome, sobrenome, apelido_unico, cpf, avatar_url, bio, cadunico_file } = req.body;
-
-            // Verifica se o email já existe
+            const { email } = req.body;
+            
             const existingUser = await DoadorModel.findByEmail(email);
             if (existingUser) {
                 return res.status(400).json({ error: "Este email já está em uso." });
             }
 
-            // Criptografa a senha com 10 "saltos"
-            const password_hash = await bcrypt.hash(password, 10);
+            const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+            
+            await CodeModel.salvar(email, codigo, 'REGISTRO');
+            await enviarCodigoEmail(email, codigo);
 
-            // Chama o Model para salvar
+            return res.status(200).json({ message: "Código de verificação enviado para o e-mail!" });
+        } catch (error) {
+            console.error("Erro ao solicitar cadastro:", error);
+            return res.status(500).json({ error: "Erro ao solicitar cadastro." });
+        }
+    }
+
+    // ETAPA 2 DO CADASTRO: Valida o código, cria o usuário na tabela USERS e o perfil em DOADORES_PROFILES
+    static async confirmarCadastroDoador(req, res) {
+        try {
+            const { email, codigo, password, nome, sobrenome, apelido_unico, cpf, avatar_url, bio, cadunico_file } = req.body;
+
+            const codigoValido = await CodeModel.validar(email, codigo, 'REGISTRO');
+            if (!codigoValido) {
+                return res.status(400).json({ error: "Código de verificação inválido ou expirado." });
+            }
+
+            const password_hash = await bcrypt.hash(password, 10);
+            
             const userId = await DoadorModel.create(
                 { email, password_hash },
                 { nome, sobrenome, apelido_unico, cpf, avatar_url, bio, cadunico_file }
             );
 
+            await CodeModel.deletar(email, 'REGISTRO');
+
             return res.status(201).json({ message: "Doador cadastrado com sucesso!", userId });
             
         } catch (error) {
-            console.error(error);
-            return res.status(500).json({ error: "Erro ao cadastrar doador." });
+            console.error("Erro ao confirmar cadastro:", error);
+            return res.status(500).json({ error: "Erro ao confirmar cadastro." });
         }
     }
 
-    static async login(req, res) {
+    // ETAPA 1 DO LOGIN (2FA): Valida a senha e envia o código de 6 dígitos para o e-mail
+    static async iniciarLogin(req, res) {
         try {
             const { email, password } = req.body;
 
-            // Busca usuário
             const user = await DoadorModel.findByEmail(email);
             if (!user) {
                 return res.status(401).json({ error: "Credenciais inválidas." });
             }
 
-            // Compara a senha digitada com o hash do banco
             const isPasswordValid = await bcrypt.compare(password, user.password_hash);
             if (!isPasswordValid) {
                 return res.status(401).json({ error: "Credenciais inválidas." });
             }
 
-            const secret = process.env.JWT_SECRET;
+            const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+            await CodeModel.salvar(email, codigo, 'LOGIN');
+            await enviarCodigoEmail(email, codigo);
+
+            return res.status(200).json({ 
+                requiresTwoFactor: true, 
+                message: "Código de autenticação de dois fatores enviado para o e-mail." 
+            });
+
+        } catch (error) {
+            console.error("Erro ao iniciar login:", error);
+            return res.status(500).json({ error: "Erro ao realizar login." });
+        }
+    }
+
+    // ETAPA 2 DO LOGIN (2FA): Valida o código digitado e gera o token JWT final
+    static async verificarLogin(req, res) {
+        try {
+            const { email, codigo } = req.body;
+
+            const codigoValido = await CodeModel.validar(email, codigo, 'LOGIN');
+            if (!codigoValido) {
+                return res.status(400).json({ error: "Código inválido ou expirado." });
+            }
+
+            const user = await DoadorModel.findByEmail(email);
+            if (!user) {
+                return res.status(404).json({ error: "Usuário não encontrado." });
+            }
+
+            await CodeModel.deletar(email, 'LOGIN');
+
+            const secret = process.env.JWT_SECRET || 'chave_secreta_temporaria';
             const token = jwt.sign(
                 { 
                     userId: user.id, 
@@ -54,10 +110,9 @@ class AuthController {
                     nome: user.nome 
                 }, 
                 secret, 
-                { expiresIn: '7d' } // A sessão dura 7 dias sem precisar logar de novo
+                { expiresIn: '7d' }
             );
 
-            // Retorna o token para o frontend guardar
             return res.status(200).json({
                 message: "Login realizado com sucesso!",
                 token,
@@ -70,8 +125,8 @@ class AuthController {
             });
 
         } catch (error) {
-            console.error(error);
-            return res.status(500).json({ error: "Erro ao realizar login." });
+            console.error("Erro ao verificar login:", error);
+            return res.status(500).json({ error: "Erro ao verificar login." });
         }
     }
 }
