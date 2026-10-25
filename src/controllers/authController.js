@@ -1,8 +1,11 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import DoadorModel from '../models/donorModel.js';
 import { CodeModel } from '../models/codeModel.js';
 import { enviarCodigoEmail } from '../services/emailService.js';
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 class AuthController {
     
@@ -63,6 +66,11 @@ class AuthController {
             const user = await DoadorModel.findByEmail(email);
             if (!user) {
                 return res.status(401).json({ error: "Credenciais inválidas." });
+            }
+
+            // Verifica se o usuário se cadastrou pelo Google (sem senha cadastrada)
+            if (!user.password_hash) {
+                return res.status(400).json({ error: "Esta conta foi criada com o Google. Utilize o botão de login com o Google." });
             }
 
             const isPasswordValid = await bcrypt.compare(password, user.password_hash);
@@ -127,6 +135,66 @@ class AuthController {
         } catch (error) {
             console.error("Erro ao verificar login:", error);
             return res.status(500).json({ error: "Erro ao verificar login." });
+        }
+    }
+
+    // LOGIN/CADASTRO COM GOOGLE PARA DOADOR
+    static async googleLogin(req, res) {
+        try {
+            const { token } = req.body; // ID Token enviado pelo front-end do Google
+
+            const ticket = await client.verifyIdToken({
+                idToken: token,
+                audience: process.env.GOOGLE_CLIENT_ID,
+            });
+            
+            const payload = ticket.getPayload();
+            const { email, given_name, family_name, picture } = payload;
+
+            let user = await DoadorModel.findByEmail(email);
+
+            // Se o doador não existir, cria automaticamente no banco
+            if (!user) {
+                const apelido_unico = email.split('@')[0] + Math.floor(Math.random() * 1000);
+                
+                await DoadorModel.createFromGoogle(
+                    { email },
+                    {
+                        nome: given_name || 'Doador',
+                        sobrenome: family_name || 'Civvo',
+                        apelido_unico,
+                        avatar_url: picture || null
+                    }
+                );
+                
+                user = await DoadorModel.findByEmail(email);
+            }
+
+            const secret = process.env.JWT_SECRET || 'chave_secreta_temporaria';
+            const jwtToken = jwt.sign(
+                { 
+                    userId: user.id, 
+                    userType: user.user_type,
+                    nome: user.nome 
+                }, 
+                secret, 
+                { expiresIn: '7d' }
+            );
+
+            return res.status(200).json({
+                message: "Login com Google realizado com sucesso!",
+                token: jwtToken,
+                user: {
+                    id: user.id,
+                    nome: user.nome,
+                    apelido: user.apelido_unico,
+                    avatar: user.avatar_url
+                }
+            });
+
+        } catch (error) {
+            console.error("Erro no login com Google:", error);
+            return res.status(401).json({ error: "Token do Google inválido ou expirado." });
         }
     }
 }

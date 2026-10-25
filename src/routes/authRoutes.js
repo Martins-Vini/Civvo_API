@@ -11,4 +11,7 @@ router.post('/register/confirmar', AuthController.confirmarCadastroDoador);
 router.post('/login/iniciar', AuthController.iniciarLogin);
 router.post('/login/verificar', AuthController.verificarLogin);
 
+// Rota de Autenticação com Google para Doador
+router.post('/google', AuthController.googleLogin);
+
 export default router;
