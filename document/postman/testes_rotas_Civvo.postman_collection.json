@@ -73,7 +73,7 @@
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\r\n  \"email\": \"viestudanteslk7@gmail.com\",\r\n  \"codigo\": \"913868\"\r\n}",
+          "raw": "{\r\n  \"email\": \"viestudanteslk7@gmail.com\",\r\n  \"codigo\": \"455814\"\r\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -253,6 +253,106 @@
             "auth",
             "login",
             "iniciar"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "criarPostagemOng",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTMxNTE1ODgsImV4cCI6MTc5Mzc1NjM4OH0.oaZHMxGJFlTFfiB51GAIewOi4P2UUOv9YWCr7iokCh4",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"type\": \"CAMPANHA\",\r\n  \"caption\": \"Ajudem nossa ONG a comprar ração!\",\r\n  \"mediaList\": [{\"file_url\": \"https://picsum.photos/400\", \"media_type\": \"IMAGE\"}],\r\n  \"campaignData\": {\r\n    \"meta_valor\": 1000.00,\r\n    \"data_limite\": \"2026-12-31 23:59:59\"\r\n  }\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/posts",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "posts"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "deletarPostagemOng",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": ""
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "editarPostagemOng",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": ""
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "realizarDoação",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTMxNTE1ODgsImV4cCI6MTc5Mzc1NjM4OH0.oaZHMxGJFlTFfiB51GAIewOi4P2UUOv9YWCr7iokCh4",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"campaignId\": 1,\r\n  \"amount\": 10.00\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/donations",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "donations"
           ]
         }
       },
