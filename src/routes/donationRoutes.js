@@ -1,6 +1,6 @@
 import express from 'express';
 import DonationController from '../controllers/donationController.js';
-import { verificarToken } from '../middlewares/authMiddleware.js';
+import { verificarToken } from '../middlewares/authMiddleware.js'
 
 const router = express.Router();
 
