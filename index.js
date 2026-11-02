@@ -12,7 +12,7 @@ const door = 8080;
 
 server.use(express.json());
 server.use(cors({
-    origin: ['http://localhost:5173', 'https://civvoprojeto.vercel.app/'],
+    origin: ['http://localhost:5173', 'https://civvoprojeto.vercel.app'],
     allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
 }));
 
