@@ -11,9 +11,21 @@ const server = express();
 const door = 8080;
 
 server.use(express.json());
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://civvoprojeto.vercel.app'
+];
+
 server.use(cors({
-    origin: ['http://localhost:5173', 'https://civvoprojeto.vercel.app'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
 }));
 
 server.get("/teste", (req, res) => {
