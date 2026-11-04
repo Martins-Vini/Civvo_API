@@ -1,0 +1,3 @@
+import { describe, test, expect } from '@jest/globals';
+const calcularXp = ({ doacoes = 0, curtidas = 0, comentarios = 0, voluntariados = 0 }) => doacoes * 10 + curtidas * 2 + comentarios * 3 + voluntariados * 25; const nivelPorXp = xp => Math.floor(Math.max(0, xp) / 100) + 1;
+describe('cálculo de XP', () => { test('soma atividades', () => expect(calcularXp({ doacoes: 2, curtidas: 3, comentarios: 1, voluntariados: 1 })).toBe(54)); test('usa zero para ausentes', () => { expect(calcularXp({})).toBe(0); expect(calcularXp({ doacoes: 4 })).toBe(40); }); test.each([[0, 1], [99, 1], [100, 2], [250, 3]])('calcula nível para %s XP', (xp, nivel) => expect(nivelPorXp(xp)).toBe(nivel)); test('não retorna nível menor que um', () => expect(nivelPorXp(-50)).toBe(1)); });

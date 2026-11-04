@@ -6,10 +6,10 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage"
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "test:ci": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --ci --coverage"
   },
   "keywords": [],
   "author": "",
@@ -27,5 +27,8 @@
     "mysql2": "^3.24.4",
     "nodemailer": "^10.2.0",
     "nodemon": "^1.14.10"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
   }
 }

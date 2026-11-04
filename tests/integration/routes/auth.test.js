@@ -1,0 +1,11 @@
+import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+const DoadorModel = { findByEmail: jest.fn(), create: jest.fn(), createFromGoogle: jest.fn() }; const CodeModel = { salvar: jest.fn(), validar: jest.fn(), deletar: jest.fn() }; const enviarCodigoEmail = jest.fn();
+jest.unstable_mockModule('../../../src/models/donorModel.js', () => ({ default: DoadorModel })); jest.unstable_mockModule('../../../src/models/codeModel.js', () => ({ CodeModel })); jest.unstable_mockModule('../../../src/services/emailService.js', () => ({ enviarCodigoEmail }));
+const { default: AuthController } = await import('../../../src/controllers/authController.js'); const response = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() });
+describe('AuthController', () => {
+ beforeEach(() => jest.clearAllMocks());
+ test('não permite cadastro com e-mail usado', async () => { DoadorModel.findByEmail.mockResolvedValue({ id: 1 }); const res = response(); await AuthController.solicitarCadastroDoador({ body: { email: 'usado@teste.com' } }, res); expect(res.status).toHaveBeenCalledWith(400); expect(enviarCodigoEmail).not.toHaveBeenCalled(); });
+ test('envia código para novo e-mail', async () => { DoadorModel.findByEmail.mockResolvedValue(null); const res = response(); await AuthController.solicitarCadastroDoador({ body: { email: 'novo@teste.com' } }, res); expect(CodeModel.salvar).toHaveBeenCalledWith('novo@teste.com', expect.stringMatching(/^\d{6}$/), 'REGISTRO'); expect(enviarCodigoEmail).toHaveBeenCalled(); expect(res.status).toHaveBeenCalledWith(200); });
+ test('recusa confirmação com código inválido', async () => { CodeModel.validar.mockResolvedValue(false); const res = response(); await AuthController.confirmarCadastroDoador({ body: { email: 'a@b.com', codigo: '000000', password: 'x' } }, res); expect(res.status).toHaveBeenCalledWith(400); expect(DoadorModel.create).not.toHaveBeenCalled(); });
+ test('não inicia login de conta sem senha', async () => { DoadorModel.findByEmail.mockResolvedValue({ id: 1, password_hash: null }); const res = response(); await AuthController.iniciarLogin({ body: { email: 'google@teste.com', password: 'x' } }, res); expect(res.status).toHaveBeenCalledWith(400); });
+});
