@@ -1,7 +1,6 @@
 import { pool } from '../config/conexao.js';
 
 class PostModel {
-    // Criar publicação (Orgânica, Campanha ou Voluntariado)
     static async createPost(ongId, postData, mediaList = [], campaignData = null, volunteerData = null) {
         const connection = await pool.getConnection();
         try {
@@ -9,24 +8,21 @@ class PostModel {
 
             const { type, caption, is_boosted, boosted_until } = postData;
 
-            // 1. Inserir na tabela POSTS
             const [postResult] = await connection.query(
                 `INSERT INTO POSTS (ong_id, type, caption, is_boosted, boosted_until) VALUES (?, ?, ?, ?, ?)`,
                 [ongId, type, caption || null, is_boosted || false, boosted_until || null]
             );
             const postId = postResult.insertId;
 
-            // 2. Inserir mídias se houver (até 10 fotos/vídeos)
             if (mediaList && mediaList.length > 0) {
                 for (const media of mediaList) {
                     await connection.query(
                         `INSERT INTO POST_MEDIA (post_id, file_url, media_type) VALUES (?, ?, ?)`,
-                        [postId, media.file_url, media.media_type] // media_type: 'IMAGE' ou 'VIDEO'
+                        [postId, media.file_url, media.media_type]
                     );
                 }
             }
 
-            // 3. Se for Campanha, inserir em CAMPAIGN_DETAILS
             if (type === 'CAMPANHA' && campaignData) {
                 await connection.query(
                     `INSERT INTO CAMPAIGN_DETAILS (post_id, meta_valor, data_limite) VALUES (?, ?, ?)`,
@@ -34,10 +30,9 @@ class PostModel {
                 );
             }
 
-            // 4. Se for Voluntariado com vaga própria, inserir em VOLUNTEER_DETAILS
             if (type === 'VOLUNTARIADO' && volunteerData) {
                 await connection.query(
-                    `INSERT INTO VOLUNTEER_DETAILS (post_id, google_forms_url, vagas_disponiveis, data_limite_inscricao) VALUES (?, ?, ?, ?)`,
+                    `INSERT INTO VOLUNTARIADO_DETAILS (post_id, google_forms_url, vagas_disponiveis, data_limite_inscricao) VALUES (?, ?, ?, ?)`,
                     [postId, volunteerData.google_forms_url || null, volunteerData.vagas_disponiveis || null, volunteerData.data_limite_inscricao]
                 );
             }
@@ -52,7 +47,6 @@ class PostModel {
         }
     }
 
-    // Listar feed geral de postagens
     static async listarFeed() {
         const [posts] = await pool.query(`
             SELECT 
@@ -60,15 +54,16 @@ class PostModel {
                 o.nome_fantasia AS ong_nome, 
                 o.logo_url AS ong_logo,
                 o.cnpj AS ong_cnpj,
-                c.meta_valor, c.valor_atual, c.data_limite, c.status AS campanha_status
+                c.meta_valor, c.valor_atual, c.data_limite, c.status AS campanha_status,
+                v.vagas_disponiveis, v.data_limite_inscricao
             FROM POSTS p
             JOIN ONGS_PROFILES o ON p.ong_id = o.id
             LEFT JOIN CAMPAIGN_DETAILS c ON p.id = c.post_id
+            LEFT JOIN VOLUNTARIADO_DETAILS v ON p.id = v.post_id
             WHERE p.is_active = TRUE
             ORDER BY p.created_at DESC
         `);
 
-        // Buscar mídias e detalhes para cada post
         for (let post of posts) {
             const [media] = await pool.query(`SELECT file_url, media_type FROM POST_MEDIA WHERE post_id = ?`, [post.id]);
             post.media = media;
@@ -98,6 +93,113 @@ class PostModel {
             await pool.query(`INSERT INTO POST_LIKE (post_id, user_id) VALUES (?, ?)`, [postId, userId]);
             return { liked: true };
         }
+    }
+
+    static async sharePost(postId, userId) {
+        const [result] = await pool.query(
+            `INSERT INTO POST_SHARES (post_id, user_id) VALUES (?, ?)`,
+            [postId, userId]
+        );
+        return result.insertId;
+    }
+
+    static async reportPost(postId, userId, reason) {
+        if (!reason || reason.length > 225) {
+            throw new Error("O motivo da denúncia deve ter no máximo 225 caracteres.");
+        }
+        const [result] = await pool.query(
+            `INSERT INTO POST_REPORTS (post_id, user_id, reason) VALUES (?, ?, ?)`,
+            [postId, userId, reason]
+        );
+        return result.insertId;
+    }
+
+    static async applyVolunteer(postId, userId) {
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            const [volunteer] = await connection.query(
+                `SELECT vagas_disponiveis FROM VOLUNTARIADO_DETAILS WHERE post_id = ?`,
+                [postId]
+            );
+
+            if (volunteer.length === 0) {
+                throw new Error("Vaga de voluntariado não encontrada.");
+            }
+
+            const vagasTotais = volunteer[0].vagas_disponiveis;
+
+            if (vagasTotais !== null) {
+                const [applications] = await connection.query(
+                    `SELECT COUNT(*) AS total FROM VOLUNTEER_APPLICATIONS WHERE post_id = ?`,
+                    [postId]
+                );
+
+                if (applications[0].total >= vagasTotais) {
+                    throw new Error("Esta vaga de voluntariado está cheia.");
+                }
+            }
+
+            const [existing] = await connection.query(
+                `SELECT id FROM VOLUNTEER_APPLICATIONS WHERE post_id = ? AND user_id = ?`,
+                [postId, userId]
+            );
+
+            if (existing.length > 0) {
+                throw new Error("Você já se candidatou a esta vaga.");
+            }
+
+            const [result] = await connection.query(
+                `INSERT INTO VOLUNTEER_APPLICATIONS (post_id, user_id) VALUES (?, ?)`,
+                [postId, userId]
+            );
+
+            await connection.commit();
+            return result.insertId;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    static async getLikedPostsByUser(userId) {
+        const [posts] = await pool.query(`
+            SELECT p.*, o.nome_fantasia AS ong_nome, o.logo_url AS ong_logo
+            FROM POST_LIKE pl
+            JOIN POSTS p ON pl.post_id = p.id
+            JOIN ONGS_PROFILES o ON p.ong_id = o.id
+            WHERE pl.user_id = ? AND p.is_active = TRUE
+            ORDER BY pl.created_at DESC
+        `, [userId]);
+
+        for (let post of posts) {
+            const [media] = await pool.query(`SELECT file_url, media_type FROM POST_MEDIA WHERE post_id = ?`, [post.id]);
+            post.media = media;
+        }
+
+        return posts;
+    }
+
+    static async getVolunteerHistoryByUser(userId) {
+        const [posts] = await pool.query(`
+            SELECT p.*, o.nome_fantasia AS ong_nome, o.logo_url AS ong_logo, v.data_limite_inscricao, v.vagas_disponiveis
+            FROM VOLUNTEER_APPLICATIONS va
+            JOIN POSTS p ON va.post_id = p.id
+            JOIN ONGS_PROFILES o ON p.ong_id = o.id
+            JOIN VOLUNTARIADO_DETAILS v ON p.id = v.post_id
+            WHERE va.user_id = ? AND p.is_active = TRUE
+            ORDER BY va.created_at DESC
+        `, [userId]);
+
+        for (let post of posts) {
+            const [media] = await pool.query(`SELECT file_url, media_type FROM POST_MEDIA WHERE post_id = ?`, [post.id]);
+            post.media = media;
+        }
+
+        return posts;
     }
 }
 
