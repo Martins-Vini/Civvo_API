@@ -1,36 +1,52 @@
 import { pool } from '../config/conexao.js';
 
 class DonationModel {
-    static async doarParaCampanha(donorId, campaignId, amount) {
+    static async doarParaCampanha(donorId, campaignData = {}) {
+        const campaign_id = campaignData.campaign_id;
+        const amount = campaignData.amount;
+        const mensagem = campaignData.mensagem || "";
+        const status = 'APROVADO';
+
         const connection = await pool.getConnection();
         try {
             await connection.beginTransaction();
 
-            // Valida limite máximo e mínimo da sandbox do TCC
-            if (amount <= 0 || amount > 5000) {
-                throw new Error("O valor da doação deve ser entre R$ 1,00 e R$ 5.000,00.");
+            const [result] = await connection.query(
+                `INSERT INTO DONATIONS (donor_id, campaign_id, amount, mensagem, status) VALUES (?, ?, ?, ?, ?)`,
+                [donorId, campaign_id, amount, mensagem, status]
+            );
+
+            const donationId = result.insertId;
+
+            if (campaign_id) {
+                const [campaigns] = await connection.query(
+                    `SELECT p.ong_id FROM CAMPAIGN_DETAILS cd JOIN POSTS p ON cd.post_id = p.id WHERE cd.id = ?`,
+                    [campaign_id]
+                );
+
+                if (campaigns.length > 0) {
+                    const ongId = campaigns[0].ong_id;
+                    await connection.query(
+                        `UPDATE ONGS_PROFILES SET saldo = saldo + ? WHERE id = ?`,
+                        [amount, ongId]
+                    );
+                }
+
+                await connection.query(
+                    `UPDATE CAMPAIGN_DETAILS SET valor_atual = valor_atual + ? WHERE id = ?`,
+                    [amount, campaign_id]
+                );
             }
 
-            // 1. Registra a doação como 'APROVADO' (sandbox)
-            const [donationResult] = await connection.query(
-                `INSERT INTO DONATIONS (donor_id, campaign_id, amount, status) VALUES (?, ?, ?, 'APROVADO')`,
-                [donorId, campaignId, amount]
-            );
-
-            // 2. Atualiza o valor_atual e o status na tabela CAMPAIGN_DETAILS
-            await connection.query(
-                `UPDATE CAMPAIGN_DETAILS 
-                 SET valor_atual = valor_atual + ?,
-                     status = CASE 
-                        WHEN (valor_atual + ?) >= meta_valor THEN 'ALCANÇADA'
-                        ELSE 'EM_ANDAMENTO'
-                     END
-                 WHERE id = ?`,
-                [amount, amount, campaignId]
-            );
-
             await connection.commit();
-            return donationResult.insertId;
+
+            return {
+                comprovante_id: donationId,
+                valor: amount,
+                mensagem: mensagem,
+                status: status,
+                data: new Date()
+            };
         } catch (error) {
             await connection.rollback();
             throw error;

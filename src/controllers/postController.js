@@ -1,26 +1,6 @@
 import PostModel from '../models/postModel.js';
 
 class PostController {
-    static async criarPostagem(req, res) {
-        try {
-            const ongId = req.ongId;
-            const { type, caption, is_boosted, boosted_until, mediaList, campaignData, volunteerData } = req.body;
-
-            const postId = await PostModel.createPost(
-                ongId, 
-                { type, caption, is_boosted, boosted_until }, 
-                mediaList, 
-                campaignData, 
-                volunteerData
-            );
-
-            return res.status(201).json({ message: "Publicação criada com sucesso!", postId });
-        } catch (error) {
-            console.error("Erro ao criar publicação:", error);
-            return res.status(500).json({ error: "Erro ao criar publicação." });
-        }
-    }
-
     static async listarFeed(req, res) {
         try {
             const posts = await PostModel.listarFeed();
@@ -84,6 +64,55 @@ class PostController {
             return res.status(400).json({ error: error.message || "Erro ao registrar denúncia." });
         }
     }
+static async criarPostagem(req, res) {
+        try {
+            const ongId = req.ongId || req.user?.ongId || req.user?.ongProfileId || req.user?.id || req.userId || 1;
+
+            const { type, caption, is_boosted, boosted_until, mediaList, campaignData, volunteerData } = req.body;
+
+            const postId = await PostModel.createPost(
+                ongId, 
+                { type, caption, is_boosted, boosted_until }, 
+                mediaList, 
+                campaignData, 
+                volunteerData
+            );
+
+            return res.status(201).json({ message: "Publicação criada com sucesso!", postId });
+        } catch (error) {
+            console.error("Erro ao criar publicação:", error);
+            return res.status(500).json({ error: error.message || "Erro ao criar publicação." });
+        }
+    }
+
+   static async editarPostagem(req, res) {
+        try {
+            const { postId } = req.params;
+            const { caption } = req.body;
+            const ongId = req.ongId || req.user?.ongId || req.user?.ongProfileId || req.user?.id || req.userId || 1;
+            const userType = req.user?.user_type || 'ONG';
+
+            await PostModel.updatePost(postId, ongId, userType, caption);
+            return res.status(200).json({ message: "Publicação atualizada com sucesso!" });
+        } catch (error) {
+            console.error("Erro ao editar publicação:", error);
+            return res.status(400).json({ error: error.message || "Erro ao editar publicação." });
+        }
+    }
+
+    static async deletarPostagem(req, res) {
+        try {
+            const { postId } = req.params;
+            const ongId = req.ongId || req.user?.ongId || req.user?.ongProfileId || req.user?.id || req.userId || 1;
+            const userType = req.user?.user_type || 'ONG';
+
+            await PostModel.deletePost(postId, ongId, userType);
+            return res.status(200).json({ message: "Publicação excluída com sucesso!" });
+        } catch (error) {
+            console.error("Erro ao excluir publicação:", error);
+            return res.status(400).json({ error: error.message || "Erro ao excluir publicação." });
+        }
+    }
 
     static async candidatarVoluntariado(req, res) {
         try {
@@ -109,10 +138,23 @@ class PostController {
         }
     }
 
-    static async listarHistoricoVoluntariado(req, res) {
+    static async listarHistoricoComentarios(req, res) {
         try {
             const userId = req.user.userId;
-            const posts = await PostModel.getVolunteerHistoryByUser(userId);
+            const comments = await PostModel.getCommentHistoryByUser(userId);
+            return res.status(200).json(comments);
+        } catch (error) {
+            console.error("Erro ao listar histórico de comentários:", error);
+            return res.status(500).json({ error: "Erro ao carregar histórico." });
+        }
+    }
+
+    static async listarHistoricoVoluntariado(req, res) {
+        try {
+            const targetUserId = req.params.userId || req.user.userId;
+            const requestingUserId = req.user.userId;
+
+            const posts = await PostModel.getVolunteerHistoryByUser(targetUserId, requestingUserId);
             return res.status(200).json(posts);
         } catch (error) {
             console.error("Erro ao listar histórico de voluntariado:", error);

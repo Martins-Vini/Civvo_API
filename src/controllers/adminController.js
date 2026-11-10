@@ -1,78 +1,88 @@
-import bcrypt from 'bcrypt';
+import AdminModel from '../models/adminModel.js';
 import jwt from 'jsonwebtoken';
-import { AdminModel } from '../models/adminModel.js';
+import bcrypt from 'bcrypt';
 
-export class AdminController {
-    static async entrarAdmin(req, res) {
+class AdminController {
+    static async cadastrar(req, res) {
         try {
-            const { email, password } = req.body;
+            const novoAdmin = await AdminModel.cadastrar(req.body);
+            return res.status(201).json({ message: "Administrador cadastrado com sucesso!", admin: novoAdmin });
+        } catch (error) {
+            console.error("Erro ao cadastrar admin:", error);
+            return res.status(500).json({ error: error.message || "Erro ao cadastrar administrador." });
+        }
+    }
+
+    static async login(req, res) {
+        try {
+            const { email, password } = req.body || {};
+
+            if (!email || !password) {
+                return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
+            }
 
             const admin = await AdminModel.buscarPorEmail(email);
+
             if (!admin) {
-                return res.status(401).json({ error: "Credenciais administrativas inválidas." });
+                return res.status(401).json({ error: "Credenciais inválidas." });
             }
 
             const senhaValida = await bcrypt.compare(password, admin.password_hash);
+
             if (!senhaValida) {
-                return res.status(401).json({ error: "Credenciais administrativas inválidas." });
+                return res.status(401).json({ error: "Credenciais inválidas." });
             }
 
             const secret = process.env.JWT_SECRET || 'chave_secreta_temporaria';
             const token = jwt.sign(
-                { 
-                    userId: admin.id, 
-                    adminProfileId: admin.admin_profile_id,
-                    userType: admin.user_type,
-                    roleLevel: admin.role_level,
-                    cargo: admin.cargo
-                }, 
-                secret, 
-                { expiresIn: '8h' } // Sessão administrativa expira mais rápido por segurança
+                { id: admin.id, userId: admin.id, userType: admin.user_type, role_level: admin.role_level },
+                secret,
+                { expiresIn: '24h' }
             );
 
             return res.status(200).json({
-                message: "Login administrativo realizado com sucesso!",
+                message: "Login realizado com sucesso!",
                 token,
                 admin: {
                     id: admin.id,
-                    nomeCompleto: admin.nome_completo,
-                    cargo: admin.cargo,
-                    roleLevel: admin.role_level
+                    email: admin.email,
+                    nome_completo: admin.nome_completo,
+                    role_level: admin.role_level
                 }
             });
-
         } catch (error) {
-            console.error("Erro no login admin:", error);
-            return res.status(500).json({ error: "Erro interno no servidor." });
+            console.error("Erro no login do admin:", error);
+            return res.status(500).json({ error: "Erro ao realizar login." });
         }
     }
 
-    static async cadastrarNovoAdmin(req, res) {
+    static async listarDenuncias(req, res) {
         try {
-            // Apenas SUPER_ADMIN pode executar esta função (garantido pelo middleware)
-            const { email, password, nome_completo, cargo, role_level } = req.body;
+            const denuncias = await AdminModel.listarDenuncias();
+            return res.status(200).json(denuncias);
+        } catch (error) {
+            console.error("Erro ao listar denúncias:", error);
+            return res.status(500).json({ error: "Erro ao listar denúncias." });
+        }
+    }
 
-            const adminExistente = await AdminModel.buscarPorEmail(email);
-            if (adminExistente) {
-                return res.status(400).json({ error: "Já existe um administrador cadastrado com este e-mail." });
+    static async atualizarDenuncia(req, res) {
+        try {
+            const { id } = req.params;
+            const { status } = req.body;
+
+            const atualizado = await AdminModel.atualizarStatusDenuncia(id, status);
+
+            if (!atualizado) {
+                return res.status(404).json({ error: "Denúncia não encontrada." });
             }
 
-            const password_hash = await bcrypt.hash(password, 10);
-
-            const userId = await AdminModel.criarNovoAdmin(
-                { email, password_hash },
-                { nome_completo, cargo, role_level }
-            );
-
-            return res.status(201).json({
-                message: "Novo administrador cadastrado com sucesso pelo Super Admin!",
-                userId,
-                roleLevel: role_level
-            });
-
+            return res.status(200).json({ message: "Status da denúncia atualizado com sucesso!" });
         } catch (error) {
-            console.error("Erro ao cadastrar novo admin:", error);
-            return res.status(500).json({ error: "Erro ao registrar novo administrador." });
+            console.error("Erro ao atualizar denúncia:", error);
+            return res.status(500).json({ error: "Erro ao atualizar denúncia." });
         }
     }
 }
+
+export default AdminController;

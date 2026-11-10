@@ -1,22 +1,12 @@
-import express from 'express';
-import { AdminController } from '../controllers/adminController.js';
-import { verificarAdmin } from '../middlewares/authAdminMiddleware.js';
+import { Router } from 'express';
+import AdminController from '../controllers/adminController.js';
+import { verificarToken } from '../middlewares/authMiddleware.js';
 
-const router = express.Router();
+const router = Router();
 
-// Rota pública de login administrativo
-router.post('/login', AdminController.entrarAdmin);
-
-// Rota protegida: Apenas SUPER_ADMIN pode criar novos admins na plataforma
-router.post('/register', verificarAdmin(['SUPER ADMIN']), AdminController.cadastrarNovoAdmin);
-
-// Exemplo de rota restrita para análise de Compliance e Super Admin
-router.get('/dashboard-privado', verificarAdmin(['SUPER ADMIN', 'COMPLIANCE']), (req, res) => {
-    return res.status(200).json({
-        message: "Bem-vindo ao painel restrito de conformidade e auditoria da Civvo!",
-        adminId: req.userId,
-        nivel: req.roleLevel
-    });
-});
+router.post('/cadastro', AdminController.cadastrar);
+router.post('/login', AdminController.login);
+router.get('/denuncias', verificarToken, AdminController.listarDenuncias);
+router.put('/denuncias/:id', verificarToken, AdminController.atualizarDenuncia);
 
 export default router;

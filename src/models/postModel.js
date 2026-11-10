@@ -114,6 +114,50 @@ class PostModel {
         return result.insertId;
     }
 
+    static async updatePost(postId, ongId, userType, caption) {
+        let query = `UPDATE POSTS SET caption = ? WHERE id = ?`;
+        let params = [caption, postId];
+
+        if (userType !== 'ADMIN') {
+            query += ` AND ong_id = ?`;
+            params.push(ongId);
+        }
+
+        const [result] = await pool.query(query, params);
+        if (result.affectedRows === 0) {
+            throw new Error("Publicação não encontrada ou sem permissão para editar.");
+        }
+        return true;
+    }
+
+    static async deletePost(postId, user) {
+    const connection = await pool.getConnection();
+    try {
+        // Se for ADMIN, pode apagar qualquer post diretamente
+        if (user.userType === 'ADMIN' || user.role_level) {
+            const [result] = await connection.query(`DELETE FROM POSTS WHERE id = ?`, [postId]);
+            return result.affectedRows > 0;
+        }
+
+        // Se for ONG, valida se o post pertence à ONG dela
+        const [posts] = await connection.query(
+            `SELECT p.id FROM POSTS p 
+             JOIN ONGS_PROFILES o ON p.ong_id = o.id 
+             WHERE p.id = ? AND o.user_id = ?`,
+            [postId, user.userId]
+        );
+
+        if (posts.length === 0) {
+            return false; // Não encontrado ou sem permissão
+        }
+
+        const [result] = await connection.query(`DELETE FROM POSTS WHERE id = ?`, [postId]);
+        return result.affectedRows > 0;
+    } finally {
+        connection.release();
+    }
+}
+
     static async applyVolunteer(postId, userId) {
         const connection = await pool.getConnection();
         try {
@@ -183,7 +227,28 @@ class PostModel {
         return posts;
     }
 
-    static async getVolunteerHistoryByUser(userId) {
+    static async getCommentHistoryByUser(userId) {
+        const [comments] = await pool.query(`
+            SELECT c.*, p.caption AS post_caption
+            FROM POST_COMMENT c
+            JOIN POSTS p ON c.post_id = p.id
+            WHERE c.user_id = ? AND c.is_active = TRUE
+            ORDER BY c.created_at DESC
+        `, [userId]);
+        return comments;
+    }
+
+    static async getVolunteerHistoryByUser(targetUserId, requestingUserId = null) {
+        if (requestingUserId && requestingUserId !== targetUserId) {
+            const [privacy] = await pool.query(
+                `SELECT voluntariados_publicos FROM DOADORES_PROFILES WHERE user_id = ?`,
+                [targetUserId]
+            );
+            if (privacy.length > 0 && !privacy[0].voluntariados_publicos) {
+                return [];
+            }
+        }
+
         const [posts] = await pool.query(`
             SELECT p.*, o.nome_fantasia AS ong_nome, o.logo_url AS ong_logo, v.data_limite_inscricao, v.vagas_disponiveis
             FROM VOLUNTEER_APPLICATIONS va
@@ -192,7 +257,7 @@ class PostModel {
             JOIN VOLUNTARIADO_DETAILS v ON p.id = v.post_id
             WHERE va.user_id = ? AND p.is_active = TRUE
             ORDER BY va.created_at DESC
-        `, [userId]);
+        `, [targetUserId]);
 
         for (let post of posts) {
             const [media] = await pool.query(`SELECT file_url, media_type FROM POST_MEDIA WHERE post_id = ?`, [post.id]);

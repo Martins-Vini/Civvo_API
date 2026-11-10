@@ -1,9 +1,9 @@
-import express from 'express';
+import { Router } from 'express';
 import DonationController from '../controllers/donationController.js';
-import { verificarToken } from '../middlewares/authMiddleware.js'
+import { verificarToken } from '../middlewares/authMiddleware.js';
 
-const router = express.Router();
+const router = Router();
 
-router.post('/', verificarToken, DonationController.doarParaCampanha);
+router.post('/', verificarToken, DonationController.realizarDoacao);
 
 export default router;

@@ -7,356 +7,1019 @@
   },
   "item": [
     {
-      "name": "cadastro_ONG",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"contato@aacd.org.br\",\n  \"password\": \"SenhaSegura123\",\n  \"cnpj\": \"60979457000111\",\n  \"logo_url\": \"https://picsum.photos/200?5\",\n  \"banner_url\": \"https://picsum.photos/800/300?5\",\n  \"historia\": \"Reabilitação e inclusão social de pessoas com deficiência física.\",\n  \"causas_atendidas\": \"Reabilitação, Saúde\",\n  \"chave_pix\": \"60979457000111\",\n  \"nivel_transparencia\": \"Alto\",\n  \"telefone\": { \"ddd\": \"11\", \"numero\": \"55760000\", \"is_whatsapp\": true },\n  \"endereco_customizado\": { \"rua\": \"Av. Prof. Ascendino Reis, 724\", \"bairro\": \"Vila Clementino\", \"cidade\": \"São Paulo\", \"estado\": \"SP\", \"cep\": \"04027000\" }\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "localhost:8080/api/ong/register/ong",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "ong",
-            "register",
-            "ong"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "login_ONG",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{ \"email\": \"contato@aacd.org.br\", \"password\": \"SenhaSegura123\" }",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "localhost:8080/api/ong/login/ong",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "ong",
-            "login",
-            "ong"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "verificarLoginDoador",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n  \"email\": \"viestudanteslk7@gmail.com\",\r\n  \"codigo\": \"455814\"\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "http://localhost:8080/api/auth/login/verificar",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "auth",
-            "login",
-            "verificar"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "cadastro_Doador",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"viestudanteslk7@gmail.com\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "localhost:8080/api/auth/register/solicitar",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "auth",
-            "register",
-            "solicitar"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "cadastro_admin",
-      "request": {
-        "auth": {
-          "type": "bearer",
-          "bearer": [
+      "name": "Doadores",
+      "item": [
+        {
+          "name": "Doações",
+          "item": [
             {
-              "key": "token",
-              "value": "{{json_web_token_0fvj}}",
-              "type": "string"
+              "name": "realizarDoação",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInVzZXJUeXBlIjoiRE9BRE9SIiwibm9tZSI6IlZpbmljaXVzIiwiaWF0IjoxNzk0MTAyNjM0LCJleHAiOjE3OTQ3MDc0MzR9.TyHzZziSTBk14KYadrbRjMn-nxDBwsLLqjH1TM113Ds",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"campaign_id\": 1,\r\n  \"amount\": 150.00,\r\n  \"mensagem\": \"Parabéns pelo projeto incrível! Espero que alcance a meta rápido.\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/donations",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "donations"
+                  ]
+                }
+              },
+              "response": []
             }
           ]
         },
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"novo.compliance@civvo.org\",\n  \"password\": \"SenhaAdminSegura123\",\n  \"nome_completo\": \"Carla Mendes\",\n  \"cargo\": \"Analista Sênior de Compliance\",\n  \"role_level\": \"COMPLIANCE\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "http://localhost:8080/api/admin/register",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "admin",
-            "register"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "login_admin",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"superadmin@civvo.org\",\n  \"password\": \"SenhaSuperAdmin123\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "http://localhost:8080/api/admin/login",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "admin",
-            "login"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "confirmarCadastro_Doador",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"viestudanteslk7@gmail.com\",\n  \"codigo\": \"545302\",\n  \"password\": \"SenhaSegura123\",\n  \"nome\": \"Vinicius\",\n  \"sobrenome\": \"Martins\",\n  \"apelido_unico\": \"vini_dev\",\n  \"cpf\": \"12345678901\",\n  \"avatar_url\": \"https://picsum.photos/200\",\n  \"bio\": \"Desenvolvedor full-stack e apoiador de causas sociais.\",\n  \"cadunico_file\": null\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "localhost:8080/api/auth/register/confirmar",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "auth",
-            "register",
-            "confirmar"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "iniciarLoginDoador",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n  \"email\": \"viestudanteslk7@gmail.com\",\r\n  \"password\": \"SenhaSegura123\"\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "http://localhost:8080/api/auth/login/iniciar",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "auth",
-            "login",
-            "iniciar"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "criarPostagemOng",
-      "request": {
-        "auth": {
-          "type": "bearer",
-          "bearer": [
+        {
+          "name": "Postagens",
+          "item": [
             {
-              "key": "token",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTMxNTE1ODgsImV4cCI6MTc5Mzc1NjM4OH0.oaZHMxGJFlTFfiB51GAIewOi4P2UUOv9YWCr7iokCh4",
-              "type": "string"
-            }
-          ]
-        },
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n  \"type\": \"CAMPANHA\",\r\n  \"caption\": \"Ajudem nossa ONG a comprar ração!\",\r\n  \"mediaList\": [{\"file_url\": \"https://picsum.photos/400\", \"media_type\": \"IMAGE\"}],\r\n  \"campaignData\": {\r\n    \"meta_valor\": 1000.00,\r\n    \"data_limite\": \"2026-12-31 23:59:59\"\r\n  }\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "http://localhost:8080/api/posts",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "posts"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "deletarPostagemOng",
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "url": {
-          "raw": ""
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "editarPostagemOng",
-      "request": {
-        "method": "PATCH",
-        "header": [],
-        "url": {
-          "raw": ""
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "realizarDoação",
-      "request": {
-        "auth": {
-          "type": "bearer",
-          "bearer": [
+              "name": "curtirPostagem",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTQwOTkwNzgsImV4cCI6MTc5NDcwMzg3OH0.n68uvty6ouVqdaxzq0kiVxbFDEvX-P73KwdoCSxVXVY",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/posts/3/curtir",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "posts",
+                    "3",
+                    "curtir"
+                  ]
+                }
+              },
+              "response": []
+            },
             {
-              "key": "token",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTMxNTE1ODgsImV4cCI6MTc5Mzc1NjM4OH0.oaZHMxGJFlTFfiB51GAIewOi4P2UUOv9YWCr7iokCh4",
-              "type": "string"
+              "name": "comentar",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTQwOTkwNzgsImV4cCI6MTc5NDcwMzg3OH0.n68uvty6ouVqdaxzq0kiVxbFDEvX-P73KwdoCSxVXVY",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"content\": \"Excelente trabalho! Como posso ajudar mais?\",\r\n  \"parentCommentId\": null\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/posts/3/comentar",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "posts",
+                    "3",
+                    "comentar"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "compartilhar",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTQwOTkwNzgsImV4cCI6MTc5NDcwMzg3OH0.n68uvty6ouVqdaxzq0kiVxbFDEvX-P73KwdoCSxVXVY",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/posts/3/compartilhar",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "posts",
+                    "3",
+                    "compartilhar"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "denunciar",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTQwOTkwNzgsImV4cCI6MTc5NDcwMzg3OH0.n68uvty6ouVqdaxzq0kiVxbFDEvX-P73KwdoCSxVXVY",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"reason\": \"Conteúdo contendo informações enganosas sobre a campanha de arrecadação.\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/posts/3/denunciar",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "posts",
+                    "3",
+                    "denunciar"
+                  ]
+                }
+              },
+              "response": []
             }
           ]
         },
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n  \"campaignId\": 1,\r\n  \"amount\": 10.00\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+        {
+          "name": "iniciarLoginDoador",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"viestudanteslk7@gmail.com\",\r\n  \"password\": \"SenhaSegura123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login/iniciar",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "login",
+                "iniciar"
+              ]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://localhost:8080/api/donations",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "donations"
-          ]
+        {
+          "name": "verificarLoginDoador",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"viestudanteslk7@gmail.com\",\r\n  \"codigo\": \"785778\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login/verificar",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "login",
+                "verificar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "cadastro_Doador",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"viestudanteslk7@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "localhost:8080/api/auth/register/solicitar",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "register",
+                "solicitar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "confirmarCadastro_Doador",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"viestudanteslk7@gmail.com\",\n  \"codigo\": \"545302\",\n  \"password\": \"SenhaSegura123\",\n  \"nome\": \"Vinicius\",\n  \"sobrenome\": \"Martins\",\n  \"apelido_unico\": \"vini_dev\",\n  \"cpf\": \"12345678901\",\n  \"avatar_url\": \"https://picsum.photos/200\",\n  \"bio\": \"Desenvolvedor full-stack e apoiador de causas sociais.\",\n  \"cadunico_file\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "localhost:8080/api/auth/register/confirmar",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "auth",
+                "register",
+                "confirmar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "editarPerfil",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInVzZXJUeXBlIjoiRE9BRE9SIiwibm9tZSI6IlZpbmljaXVzIiwiaWF0IjoxNzk0MDkwODU4LCJleHAiOjE3OTQ2OTU2NTh9.eRLi3ZjOLwNZUoJ-2DgIEkCyH4rk-OCFg69_iPgRkIU",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"bio\": \"Entusiasta de causas sociais e voluntário ativo na Zona Leste.\",\r\n  \"banner_url\": \"https://exemplo.com/banners/doador_banner.jpg\",\r\n  \"voluntariados_publicos\": true,\r\n  \"redes_sociais\": [\r\n    { \"plataforma\": \"instagram\", \"url\": \"https://instagram.com/usuario\" },\r\n    { \"plataforma\": \"linkedin\", \"url\": \"https://linkedin.com/in/usuario\" }\r\n  ]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/donor/profile",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "donor",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "verVoluntariados",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInVzZXJUeXBlIjoiRE9BRE9SIiwibm9tZSI6IlZpbmljaXVzIiwiaWF0IjoxNzk0MDkwODU4LCJleHAiOjE3OTQ2OTU2NTh9.eRLi3ZjOLwNZUoJ-2DgIEkCyH4rk-OCFg69_iPgRkIU",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/posts/historico/voluntariado",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "posts",
+                "historico",
+                "voluntariado"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "historicoCurtidas",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInVzZXJUeXBlIjoiRE9BRE9SIiwibm9tZSI6IlZpbmljaXVzIiwiaWF0IjoxNzk0MTAyNjM0LCJleHAiOjE3OTQ3MDc0MzR9.TyHzZziSTBk14KYadrbRjMn-nxDBwsLLqjH1TM113Ds",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/posts/historico/curtidas",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "posts",
+                "historico",
+                "curtidas"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "historicoComentarios",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInVzZXJUeXBlIjoiRE9BRE9SIiwibm9tZSI6IlZpbmljaXVzIiwiaWF0IjoxNzk0MTAyNjM0LCJleHAiOjE3OTQ3MDc0MzR9.TyHzZziSTBk14KYadrbRjMn-nxDBwsLLqjH1TM113Ds",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/api/posts/historico/comentarios",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "posts",
+                "historico",
+                "comentarios"
+              ]
+            }
+          },
+          "response": []
         }
-      },
-      "response": []
+      ]
+    },
+    {
+      "name": "ONGs",
+      "item": [
+        {
+          "name": "Postagens",
+          "item": [
+            {
+              "name": "fazerDenúncia",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTQwMDk0MTgsImV4cCI6MTc5NDYxNDIxOH0._rorsvUKj4eDVrhMi8nfHcbsKOVFMASCAETTDGSJwvI",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"reason\": \"Publicação contém informações falsas ou enganosas.\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/posts/3/denunciar",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "posts",
+                    "3",
+                    "denunciar"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "deletarPostagemOng",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwidXNlcklkIjo4LCJ1c2VyVHlwZSI6IkFETUlOIiwicm9sZV9sZXZlbCI6IlNVUEVSIEFETUlOIiwiaWF0IjoxNzk0Mjc1NjY0LCJleHAiOjE3OTQzNjIwNjR9.O9FNsPXbnZDvDAgdXTxZGlajRJJl1zYYfNefzdr82iQ",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/posts/3",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "posts",
+                    "3"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "criarPostagemOng",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTQwOTkwNzgsImV4cCI6MTc5NDcwMzg3OH0.n68uvty6ouVqdaxzq0kiVxbFDEvX-P73KwdoCSxVXVY",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"type\": \"POST\",\r\n  \"caption\": \"Hoje realizamos a entrega de alimentos na comunidade local.\",\r\n  \"is_boosted\": false,\r\n  \"boosted_until\": null,\r\n  \"mediaList\": [\r\n    {\r\n      \"file_url\": \"https://exemplo.com/fotos/post1.jpg\",\r\n      \"media_type\": \"IMAGE\"\r\n    }\r\n  ]\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/posts",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "posts"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "criarCampanha",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTQwMDk0MTgsImV4cCI6MTc5NDYxNDIxOH0._rorsvUKj4eDVrhMi8nfHcbsKOVFMASCAETTDGSJwvI",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"type\": \"CAMPANHA\",\r\n  \"caption\": \"Ajude nossa campanha de arrecadação de agasalhos para o inverno.\",\r\n  \"is_boosted\": false,\r\n  \"boosted_until\": null,\r\n  \"mediaList\": [\r\n    {\r\n      \"file_url\": \"https://exemplo.com/fotos/campanha.jpg\",\r\n      \"media_type\": \"IMAGE\"\r\n    }\r\n  ],\r\n  \"campaignData\": {\r\n    \"meta_valor\": 3500.00,\r\n    \"data_limite\": \"2026-12-31 23:59:59\"\r\n  }\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/posts",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "posts"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "criarVoluntariado",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTQwMDk0MTgsImV4cCI6MTc5NDYxNDIxOH0._rorsvUKj4eDVrhMi8nfHcbsKOVFMASCAETTDGSJwvI",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"type\": \"VOLUNTARIADO\",\r\n  \"caption\": \"Precisamos de voluntários para suporte na distribuição de marmitas.\",\r\n  \"is_boosted\": false,\r\n  \"boosted_until\": null,\r\n  \"mediaList\": [\r\n    {\r\n      \"file_url\": \"https://exemplo.com/videos/voluntariado.mp4\",\r\n      \"media_type\": \"VIDEO\"\r\n    }\r\n  ],\r\n  \"volunteerData\": {\r\n    \"google_forms_url\": \"https://forms.gle/exemplo\",\r\n    \"vagas_disponiveis\": 10,\r\n    \"data_limite_inscricao\": \"2026-11-25 18:00:00\"\r\n  }\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/posts",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "posts"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "criarMomentos",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTQwMDk0MTgsImV4cCI6MTc5NDYxNDIxOH0._rorsvUKj4eDVrhMi8nfHcbsKOVFMASCAETTDGSJwvI",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"media_url\": \"https://exemplo.com/stories/story1.jpg\",\r\n  \"caption\": \"Bastidores da preparação dos kits!\",\r\n  \"duracao_horas\": 24\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/moments",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "moments"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "editarPostagem",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsIm9uZ1Byb2ZpbGVJZCI6MSwidXNlclR5cGUiOiJPTkciLCJjbnBqIjoiNjA5Nzk0NTcwMDAxMTEiLCJpYXQiOjE3OTQwOTkwNzgsImV4cCI6MTc5NDcwMzg3OH0.n68uvty6ouVqdaxzq0kiVxbFDEvX-P73KwdoCSxVXVY",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n  \"caption\": \"Texto atualizado da publicação com novas informações.\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:8080/api/posts/6",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "api",
+                    "posts",
+                    "6"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "cadastro_ONG",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"contato@aacd.org.br\",\n  \"password\": \"SenhaSegura123\",\n  \"cnpj\": \"60979457000111\",\n  \"logo_url\": \"https://picsum.photos/200?5\",\n  \"banner_url\": \"https://picsum.photos/800/300?5\",\n  \"historia\": \"Reabilitação e inclusão social de pessoas com deficiência física.\",\n  \"causas_atendidas\": \"Reabilitação, Saúde\",\n  \"chave_pix\": \"60979457000111\",\n  \"nivel_transparencia\": \"Alto\",\n  \"telefone\": { \"ddd\": \"11\", \"numero\": \"55760000\", \"is_whatsapp\": true },\n  \"endereco_customizado\": { \"rua\": \"Av. Prof. Ascendino Reis, 724\", \"bairro\": \"Vila Clementino\", \"cidade\": \"São Paulo\", \"estado\": \"SP\", \"cep\": \"04027000\" }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "localhost:8080/api/ong/register/ong",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "ong",
+                "register",
+                "ong"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "login_ONG",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"email\": \"contato@aacd.org.br\", \"password\": \"SenhaSegura123\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "localhost:8080/api/ong/login/ong",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "ong",
+                "login",
+                "ong"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admins",
+      "item": [
+        {
+          "name": "login_admin",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "$2b$10$vpTmxSq8d1xukexmK1aGsuTktaPv.VVqZ/4XG.TK7oXvQTWspu.OC",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@civvo.com\",\n  \"password\": \"SenhaSegura123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/admin/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "admin",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "cadastroAdmin",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "$2b$10$vpTmxSq8d1xukexmK1aGsuTktaPv.VVqZ/4XG.TK7oXvQTWspu.OC",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"email\": \"admin@civvo.com\",\r\n    \"password\": \"SenhaSegura123\",\r\n    \"nome_completo\": \"Administrador Civvo\",\r\n    \"cargo\": \"Suporte\",\r\n    \"role_level\": \"SUPER ADMIN\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/admin/cadastro",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "admin",
+                "cadastro"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "listarDenuncia",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwidXNlcklkIjo4LCJ1c2VyVHlwZSI6IkFETUlOIiwicm9sZV9sZXZlbCI6IlNVUEVSIEFETUlOIiwiaWF0IjoxNzk0Mjc1NjY0LCJleHAiOjE3OTQzNjIwNjR9.O9FNsPXbnZDvDAgdXTxZGlajRJJl1zYYfNefzdr82iQ",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/admin/denuncias",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "admin",
+                "denuncias"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "atualizarDenuncias",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwidXNlcklkIjo4LCJ1c2VyVHlwZSI6IkFETUlOIiwicm9sZV9sZXZlbCI6IlNVUEVSIEFETUlOIiwiaWF0IjoxNzk0Mjc1NjY0LCJleHAiOjE3OTQzNjIwNjR9.O9FNsPXbnZDvDAgdXTxZGlajRJJl1zYYfNefzdr82iQ",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"status\": \"ANALISADO\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/admin/denuncias/2",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "admin",
+                "denuncias",
+                "2"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chats",
+      "item": []
+    },
+    {
+      "name": "Dashboards",
+      "item": []
     }
   ],
   "variable": [

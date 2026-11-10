@@ -1,87 +1,43 @@
 import { pool } from '../config/conexao.js';
 
-class DoadorModel {
-    static async create(userData, profileData) {
-        const connection = await pool.getConnection();
+class DonorModel {
+    static async updateProfile(userId, profileData) {
+        const { bio, banner_url, avatar_url, voluntariados_publicos, redes_sociais } = profileData;
         
-        try {
-            await connection.beginTransaction();
+        const [result] = await pool.query(
+            `UPDATE DOADORES_PROFILES 
+             SET bio = COALESCE(?, bio),
+                 banner_url = COALESCE(?, banner_url),
+                 avatar_url = COALESCE(?, avatar_url),
+                 voluntariados_publicos = COALESCE(?, voluntariados_publicos),
+                 redes_sociais = COALESCE(?, redes_sociais)
+             WHERE user_id = ?`,
+            [
+                bio !== undefined ? bio : null,
+                banner_url !== undefined ? banner_url : null,
+                avatar_url !== undefined ? avatar_url : null,
+                voluntariados_publicos !== undefined ? voluntariados_publicos : null,
+                redes_sociais !== undefined ? JSON.stringify(redes_sociais) : null,
+                userId
+            ]
+        );
 
-            const [userResult] = await connection.query(
-                `INSERT INTO USERS (email, password_hash, user_type) VALUES (?, ?, 'DOADOR')`,
-                [userData.email, userData.password_hash]
-            );
-            
-            const userId = userResult.insertId;
-
-            await connection.query(
-                `INSERT INTO DOADORES_PROFILES 
-                (user_id, nome, sobrenome, apelido_unico, cpf, avatar_url, bio, cadunico_file) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    userId, profileData.nome, profileData.sobrenome, 
-                    profileData.apelido_unico, profileData.cpf, 
-                    profileData.avatar_url || null, profileData.bio || null, 
-                    profileData.cadunico_file || null
-                ]
-            );
-
-            await connection.commit();
-            return userId;
-            
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
+        if (result.affectedRows === 0) {
+            throw new Error("Perfil de doador não encontrado para este usuário.");
         }
+        return true;
     }
 
-    static async createFromGoogle(userData, profileData) {
-        const connection = await pool.getConnection();
-        
-        try {
-            await connection.beginTransaction();
-
-            // password_hash fica como NULL para contas Google
-            const [userResult] = await connection.query(
-                `INSERT INTO USERS (email, password_hash, user_type) VALUES (?, NULL, 'DOADOR')`,
-                [userData.email]
-            );
-            
-            const userId = userResult.insertId;
-
-            await connection.query(
-                `INSERT INTO DOADORES_PROFILES 
-                (user_id, nome, sobrenome, apelido_unico, avatar_url) 
-                VALUES (?, ?, ?, ?, ?)`,
-                [
-                    userId, profileData.nome, profileData.sobrenome, 
-                    profileData.apelido_unico, profileData.avatar_url || null
-                ]
-            );
-
-            await connection.commit();
-            return userId;
-            
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
-        }
-    }
-
-    static async findByEmail(email) {
+   static async findByEmail(email) {
         const [rows] = await pool.query(
-            `SELECT u.*, d.nome, d.apelido_unico, d.avatar_url 
+            `SELECT u.*, d.id as donor_profile_id, d.nome, d.sobrenome, d.apelido_unico 
              FROM USERS u 
              LEFT JOIN DOADORES_PROFILES d ON u.id = d.user_id 
-             WHERE u.email = ? AND u.user_type = 'DOADOR'`, 
+             WHERE u.email = ?`, 
             [email]
         );
         return rows[0];
     }
 }
 
-export default DoadorModel;
+export default DonorModel;

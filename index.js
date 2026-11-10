@@ -6,6 +6,7 @@ import adminRoutes from './src/routes/adminRoutes.js';
 import postRoutes from './src/routes/postRoutes.js';      
 import momentRoutes from './src/routes/momentsRoutes.js';  
 import donationRoutes from './src/routes/donationRoutes.js'; 
+import donorRoutes from './src/routes/donorRoutes.js';
 
 const server = express();
 const door = 8080;
@@ -38,6 +39,7 @@ server.use('/api/admin', adminRoutes);
 server.use('/api/posts', postRoutes);        
 server.use('/api/moments', momentRoutes);    
 server.use('/api/donations', donationRoutes);
+server.use('/api/donor', donorRoutes);
 
 const PORT = process.env.PORT || door;
 
