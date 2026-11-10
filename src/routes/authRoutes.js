@@ -1,5 +1,6 @@
 import express from 'express';
 import AuthController from '../controllers/authController.js';
+import GoogleAuthController from '../controllers/googleAuthController.js';
 
 const router = express.Router();
 
@@ -12,6 +13,6 @@ router.post('/login/iniciar', AuthController.iniciarLogin);
 router.post('/login/verificar', AuthController.verificarLogin);
 
 // Rota de Autenticação com Google para Doador
-router.post('/google', AuthController.googleLogin);
+router.post('/google', GoogleAuthController.loginGoogle);
 
 export default router;
