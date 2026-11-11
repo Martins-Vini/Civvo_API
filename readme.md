@@ -1,163 +1,161 @@
-# 🌐 Civvo API — Plataforma Social de Conectividade de ONGs e Doadores
+# 🌐 Civvo API — Plataforma Social de Conectividade para ONGs e Doadores
 
-A **Civvo API** é o núcleo backend robusto da plataforma **Civvo** (projeto derivado da iniciativa **Omoyari**), desenvolvida para conectar organizações não governamentais (ONGs), doadores e voluntários, com foco inicial em ONGs da Cidade Tiradentes e Zona Leste de São Paulo. 
+A **Civvo API** é o núcleo backend robusto da plataforma **Civvo** (iniciativa vinculada ao projeto **Omoyari**), desenvolvida para conectar Organizações Não Governamentais (ONGs), doadores e voluntários, com foco inicial nas instituições da Cidade Tiradentes e Zona Leste de São Paulo.
 
-A aplicação gerencia a autenticação descentralizada (com suporte a Doadores, ONGs e Administradores), publicação de posts/demandas sociais, sistemas de denúncia e moderação administrativa, além de fluxos de integração para verificação por e-mail e autenticação social via Google OAuth 2.0.
+A aplicação gerencia autenticação descentralizada (suportando **Doadores**, **ONGs** e **Administradores**), publicação de feeds e demandas sociais, moderação administrativa de denúncias, além de integrações completas para verificação de e-mail e autenticação social via **Google OAuth 2.0**.
 
 ---
 
 ## 🛠️ Tecnologias e Stack do Backend
 
-- **Runtime Environment:** [Node.js](https://nodejs.org/) (ES Modules)
-- **Framework Web:** [Express.js](https://expressjs.com/)
-- **Banco de Dados Relacional:** [MySQL](https://www.mysql.com/) (gerenciado via biblioteca de alto desempenho `mysql2/promise` com Connection Pool)
-- **Autenticação & Segurança:** 
-  - `jsonwebtoken` (JWT): Geração e validação de tokens de acesso por perfil (Doador, ONG, Admin)
-  - `bcrypt`: Criptografia unidirecional com *salt* para hashes de senhas
-  - `google-auth-library`: Validação de tokens OAuth 2.0 / SSO do Google no servidor
-- **Gerenciamento de Arquivos:** `multer` para upload seguro de mídias/imagens de campanhas e perfis
-- **Serviços de E-mail:** Integração com APIs transacionais (`Brevo` / `Resend`) para verificação de conta e recuperação de credenciais
+| Categoria | Tecnologias Utilizadas |
+| :--- | :--- |
+| **Runtime** | [Node.js](https://nodejs.org/) (ES Modules) |
+| **Framework Web** | [Express.js](https://expressjs.com/) |
+| **Banco de Dados** | [MySQL](https://www.mysql.com/) (Driver `mysql2/promise` com Connection Pool) |
+| **Segurança & Auth** | `jsonwebtoken` (JWT), `bcrypt`, `google-auth-library` |
+| **Gerenciamento de Arquivos** | `multer` (Upload seguro de mídias e documentos) |
+| **E-mails Transacionais** | APIs de integração com `Brevo` / `Resend` |
 
 ---
 
 ## 📐 Arquitetura do Sistema e Padrão MVC
 
-A API segue uma arquitetura orientada ao padrão **MVC (Model-View-Controller)** adaptada para RESTful APIs, priorizando o desacoplamento de responsabilidades e facilitando a manutenção do código.
+A API segue o padrão **MVC (Model-View-Controller)** adaptado para APIs RESTful, garantindo baixo acoplamento e alta legibilidade de código.
 
-              +-----------------------+
-              |    Requisição HTTP    |
-              +-----------+-----------+
-                          |
-                          v
-              +-----------------------+
-              |    Routes / Router    |
-              +-----------+-----------+
-                          |
-                          v
-              +-----------------------+
-              |      Middlewares      |
-              | (Auth / Validation)   |
-              +-----------+-----------+
-                          |
-                          v
-              +-----------------------+
-              |      Controller       | <--- Lógica de Negócio, HTTP Codes (200, 400, 500)
-              +-----+-----------+-----+
-                    |           |
-         (Queries)  |           | (JSON Responses)
-                    v           v
-              +-----------+ +-----------+
-              |   Model   | |   Client  |
-              +-----+-----+ +-----------+
-                    |
-         (SQL)      v
-              +-----------+
-              | MySQL DB  |
-              +-----------+
+```text
+                  +-----------------------+
+                  |    Requisição HTTP    |
+                  +-----------+-----------+
+                              |
+                              v
+                  +-----------------------+
+                  |    Routes / Router    |
+                  +-----------+-----------+
+                              |
+                              v
+                  +-----------------------+
+                  |      Middlewares      |
+                  | (Auth / Validation)   |
+                  +-----------+-----------+
+                              |
+                              v
+                  +-----------------------+
+                  |      Controller       | <--- Lógica de Negócio, HTTP Codes
+                  +-----+-----------+-----+
+                        |           |
+             (Queries)  |           | (JSON Responses)
+                        v           v
+                  +-----------+ +-----------+
+                  |   Model   | |   Client  |
+                  +-----+-----+ +-----------+
+                        |
+             (SQL)      v
+                  +-----------+
+                  | MySQL DB  |
+                  +-----------+
+```
 
-### Divisão de Responsabilidades no MVC:
-1. **Model (Camada de Dados):** Contém a lógica de acesso ao banco de dados (`pool.query`). O Model não conhece requisições HTTP (`req`) nem respostas (`res`); apenas executa as queries SQL (INSERT, SELECT, UPDATE, DELETE) e manipula as regras de transação (`beginTransaction`, `commit`, `rollback`).
-2. **View (Camada de Apresentação):** Em uma arquitetura de API desacoplada, a "View" é representada pelas respostas formatadas em JSON retornado aos clientes (Web / Mobile).
-3. **Controller (Camada de Controle):** Recebe o `req.body` ou `req.params`, executa validações de regras de negócio, aciona os métodos dos Models e devolve o status HTTP apropriado com os dados formatados.
+### Divisão de Responsabilidades:
+
+1. **Model (Camada de Dados):** Executa consultas SQL diretas (`pool.query`) e gerencia transações completas (`beginTransaction`, `commit`, `rollback`). Não manipula objetos de requisição HTTP (`req`/`res`).
+2. **View (Camada de Apresentação):** Representada pelas respostas padronizadas em formato **JSON** devolvidas aos clientes (Web e Mobile).
+3. **Controller (Camada de Controle):** Intercepta os dados (`req.body`, `req.params`), aplica as regras de negócio e validações, aciona o Model e constrói a resposta HTTP (`res.status().json()`).
 
 ---
 
-## 📂 Estrutura de Pastas e Arquivos do Projeto
+## 📂 Estrutura de Pastas do Projeto
 
-Conforme a árvore de diretórios configurada na aplicação:
-
+```text
 Civvo_API/
 ├── src/
-│   ├── config/          # Configuração de conexões (MySQL pool, variáveis globais)
-│   ├── controllers/     # Camada de controle da lógica de negócio e retornos HTTP
-│   ├── middlewares/     # Interceptadores de requisições (JWT auth, papéis, upload, rate limit)
-│   ├── models/          # Camada de acesso ao banco de dados (queries SQL e transações)
-│   ├── routes/          # Definição das rotas e endpoints da API
-│   ├── services/        # Integrações externas (Envio de e-mails via Brevo/Resend, OAuth)
-│   └── utils/           # Funções auxiliares, formatadores, máscaras e validadores
-├── tests/               # Suítes de testes unitários e de integração
-├── .env                 # Variáveis de ambiente da aplicação (Segredos, credenciais DB)
-├── .env.example         # Template com o exemplo de variáveis necessárias para execução
-├── .gitignore           # Arquivos ignorados pelo controle de versão Git
-├── gerarAdmin.js        # Script utilitário CLI para geração inicial de usuários Administradores
+│   ├── config/          # Configurações globais e Pool de conexões MySQL
+│   ├── controllers/     # Controladores da lógica de negócio (Doadores, ONGs, Admin, Posts)
+│   ├── middlewares/     # Travas de segurança, validação de JWT, roles e uploads
+│   ├── models/          # Abstração de queries SQL e manipulação do banco de dados
+│   ├── routes/          # Definição e agrupamento dos endpoints da API
+│   ├── services/        # Serviços externos (Google OAuth, Envio de e-mails transacionais)
+│   └── utils/           # Módulos auxiliares, validadores de CPF/CNPJ e geradores de códigos
+├── tests/               # Suítes de testes automatizados (Unitários e Integração)
+├── .env                 # Variáveis de ambiente locais (Não comitadas)
+├── .env.example         # Modelo de configuração das variáveis necessárias
+├── .gitignore           # Lista de exclusão do repositório Git
+├── gerarAdmin.js        # Script CLI para cadastro manual do primeiro Administrador
 ├── index.js             # Ponto de entrada (Entry point) da aplicação Express
-├── package.json         # Dependências do Node.js, scripts executáveis e configurações
-└── readme.md            # Documentação técnica do projeto
+├── package.json         # Manifesto de dependências e scripts Node.js
+└── README.md            # Documentação oficial do repositório
+```
 
-## Detalhamento das Pastas de Código (src/)
-src/config/: Centraliza os parâmetros de conexão. Contém o arquivo de inicialização do Pool do MySQL (conexao.js), abstraindo detalhes de credenciais.
+### Detalhamento dos Módulos Principais (`src/`)
 
-src/controllers/: Contém os controladores segregados por domínio da aplicação (userController.js, adminController.js, postController.js, ongController.js, donorController.js, campaignController.js, etc.).
+* **`src/config/`**: Contém o arquivo `conexao.js` responsável pela gestão de conexões com o MySQL.
+* **`src/controllers/`**: Divide os fluxos operacionais por domínio: `userController.js`, `adminController.js`, `postController.js`, `ongController.js`, `donorController.js`, etc.
+* **`src/middlewares/`**: 
+  * `authMiddleware.js`: Valida o token JWT de usuários gerais.
+  * `authAdminMiddleware.js` / `roleMiddleware.js`: Restringe o acesso a rotas administrativas.
+  * `uploadMiddleware.js`: Gerencia o upload multipart via Multer.
+  * `rateLimitMiddleware.js` / `kybCheckMiddleware.js`: Proteção contra chamadas abusivas e verificação cadastral de ONGs.
+* **`src/models/`**: Gerencia a interação direta com as tabelas `USERS`, `ADMIN_PROFILES`, `ONGS_PROFILES`, `DOADORES_PROFILES`, `POSTS` e `POST_REPORTS`.
+* **`src/routes/`**: Define as rotas expostas (`/api/auth`, `/api/admin`, `/api/posts`, `/api/donations`).
 
-src/middlewares/: Contém as travas de segurança e filtros de requisição:
-
-authMiddleware.js: Validação de tokens JWT de usuários gerais.
-
-authAdminMiddleware.js / roleMiddleware.js: Restrição de rotas para Administradores ou Perfis Específicos.
-
-uploadMiddleware.js: Trata uploads de arquivos via Multer.
-
-rateLimitMiddleware.js / kybCheckMiddleware.js: Proteção contra abusos de requisição e validação de verificação de ONGs.
-
-src/models/: Contém o mapeamento e abstração de tabelas (USERS, ADMIN_PROFILES, ONGS_PROFILES, DOADORES_PROFILES, POSTS, POST_REPORTS, etc.).
-
-src/routes/: Define os caminhos acessíveis (/api/auth, /api/admin, /api/posts, /api/donations, etc.) vinculando cada rota ao seu middleware e controller correspondente.
-
-src/services/: Concentra módulos de terceiros (serviços de e-mail transacional, OAuth Client do Google).
-
-src/utils/: Funções reutilizáveis como geradores de códigos de verificação de 6 dígitos, validações sintáticas de documentos (CPF/CNPJ), etc.
+---
 
 ## 🚀 Como Executar o Projeto Localmente
-Pré-requisitos:
-Node.js versão 18.x ou superior instalado.
 
-Servidor MySQL rodando localmente ou via container Docker/instância remota.
+### Pré-requisitos
+* **Node.js** v18.0.0 ou superior instalado.
+* Servidor **MySQL** ativo (Local, Docker ou Cloud).
 
-Passos de Instalação:
-Clonar o repositório e instalar as dependências:
+### Passos para Instalação
 
-Bash
-git clone [https://github.com/Martins-Vini/Civvo_API.git](https://github.com/Martins-Vini/Civvo_API.git)
-cd Civvo_API
-npm install
+1. **Clonar o repositório e instalar as dependências:**
+   ```bash
+   git clone [https://github.com/Martins-Vini/Civvo_API.git](https://github.com/Martins-Vini/Civvo_API.git)
+   cd Civvo_API
+   npm install
+   ```
 
+2. **Configurar as Variáveis de Ambiente:**
+   Crie um arquivo `.env` na raiz do projeto contendo as seguintes definições (com base no `.env.example`):
+   ```env
+   PORT=8080
+   DB_HOST=localhost
+   DB_USER=seu_usuario_mysql
+   DB_PASSWORD=sua_senha_mysql
+   DB_NAME=civvo_db
+   JWT_SECRET=sua_chave_secreta_jwt
+   GOOGLE_CLIENT_ID=seu_google_client_id
+   GOOGLE_CLIENT_SECRET=seu_google_client_secret
+   ```
 
-### Configurar as Variáveis de Ambiente:
-**Crie um arquivo .env na raiz do projeto com base no arquivo .env.example:**
+3. **Gerar Administrador Inicial (Opcional):**
+   ```bash
+   node gerarAdmin.js
+   ```
 
-PORT=8080
-DB_HOST=localhost
-DB_USER=seu_usuario_mysql
-DB_PASSWORD=sua_senha_mysql
-DB_NAME=civvo_db
-JWT_SECRET=sua_chave_secreta_jwt
-GOOGLE_CLIENT_ID=seu_google_client_id
-GOOGLE_CLIENT_SECRET=seu_google_client_secret
-Gerar Administrador Inicial (Opcional):
+4. **Executar o Servidor em Desenvolvimento:**
+   ```bash
+   npm run dev
+   # Ou via nodemon diretamente:
+   npx nodemon index.js
+   ```
+   *O servidor estará ativo em: `http://localhost:8080`*
 
-Bash
-node gerarAdmin.js
+---
 
-**Iniciar o Servidor em Ambiente de Desenvolvimento:**
+## 📌 Principais Endpoints
 
-Bash
-npm run dev
-# Ou caso utilize nodemon diretamente:
-npx nodemon index.js
-O servidor será inicializado e escutará por padrão na porta http://localhost:8080.
+| Método | Endpoint | Descrição | Acesso |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/login` | Autenticação padrão de Doadores e ONGs com retorno JWT | Público |
+| `POST` | `/api/auth/google` | Autenticação e cadastro integrado via Google SSO | Público |
+| `POST` | `/api/admin/login` | Autenticação exclusiva para Administradores | Público |
+| `GET` | `/api/admin/denuncias` | Listagem de postagens denunciadas na plataforma | Admin (JWT) |
+| `PUT` | `/api/admin/denuncias/:id` | Atualiza o status de tratativa (`PENDENTE`, `ANALISADO`, `IGNORADO`) | Admin (JWT) |
+| `DELETE` | `/api/posts/:id` | Exclusão de publicação por violação ou solicitação da ONG | ONG / Admin |
 
-📌 Principais Endpoints Mapeados
-POST /api/auth/login — Autenticação de Doadores e ONGs com retorno de Token JWT
-
-POST /api/auth/google — Autenticação/Cadastro unificado via Google SSO
-
-POST /api/admin/login — Autenticação de administradores da plataforma
-
-GET /api/admin/denuncias — Listagem de denúncias ativas em posts (Protegido por JWT Admin)
-
-PUT /api/admin/denuncias/:id — Atualização do status de tratativa da denúncia (PENDENTE, ANALISADO, IGNORADO)
-
-DELETE /api/posts/:id — Remoção de publicação (Permitida para a ONG proprietária ou Administradores)
+---
 
 ### 📝 Licença e Autoria
-*Desenvolvido por Vinícius Martins de Paiva como parte das iniciativas da plataforma social Civvo / Omoyari. Todos os direitos reservados.*
+Desenvolvido por **Vinícius Martins de Paiva** como parte integrante da plataforma **Civvo** / **Omoyari**. Todos os direitos reservados.
+>>>>
