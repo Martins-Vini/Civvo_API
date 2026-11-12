@@ -36,7 +36,14 @@ class AuthController {
         try {
             const { email, codigo, password, nome, sobrenome, apelido_unico, cpf, avatar_url, bio, cadunico_file } = req.body;
 
-            const codigoValido = await CodeModel.validar(email, codigo, 'REGISTRO');
+            if (!email || !codigo) {
+                return res.status(400).json({ error: "E-mail e código são obrigatórios." });
+            }
+
+            // Garante que o código seja tratado estritamente como string sem espaços extras
+            const codigoFormatado = String(codigo).trim();
+
+            const codigoValido = await CodeModel.validar(email, codigoFormatado, 'REGISTRO');
             if (!codigoValido) {
                 return res.status(400).json({ error: "Código de verificação inválido ou expirado." });
             }
@@ -54,7 +61,7 @@ class AuthController {
             
         } catch (error) {
             console.error("Erro ao confirmar cadastro:", error);
-            return res.status(500).json({ error: "Erro ao confirmar cadastro." });
+            return res.status(500).json({ error: "Erro ao confirmar cadastro: " + error.message });
         }
     }
 
@@ -68,7 +75,6 @@ class AuthController {
                 return res.status(401).json({ error: "Credenciais inválidas." });
             }
 
-            // Verifica se o usuário se cadastrou pelo Google (sem senha cadastrada)
             if (!user.password_hash) {
                 return res.status(400).json({ error: "Esta conta foi criada com o Google. Utilize o botão de login com o Google." });
             }
@@ -97,8 +103,9 @@ class AuthController {
     static async verificarLogin(req, res) {
         try {
             const { email, codigo } = req.body;
+            const codigoFormatado = String(codigo).trim();
 
-            const codigoValido = await CodeModel.validar(email, codigo, 'LOGIN');
+            const codigoValido = await CodeModel.validar(email, codigoFormatado, 'LOGIN');
             if (!codigoValido) {
                 return res.status(400).json({ error: "Código inválido ou expirado." });
             }
@@ -138,10 +145,10 @@ class AuthController {
         }
     }
 
-    // LOGIN/CADASTRO COM GOOGLE PARA DOADOR
-    static async googleLogin(req, res) {
+    // LOGIN/CADASTRO COM GOOGLE PARA DOADOR (Nome corrigido para bater com o authRoutes.js)
+    static async loginGoogle(req, res) {
         try {
-            const { token } = req.body; // ID Token enviado pelo front-end do Google
+            const { token } = req.body;
 
             const ticket = await client.verifyIdToken({
                 idToken: token,
@@ -153,7 +160,6 @@ class AuthController {
 
             let user = await DoadorModel.findByEmail(email);
 
-            // Se o doador não existir, cria automaticamente no banco
             if (!user) {
                 const apelido_unico = email.split('@')[0] + Math.floor(Math.random() * 1000);
                 
