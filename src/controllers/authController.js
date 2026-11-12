@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
+import { pool } from '../config/conexao.js';
 import DoadorModel from '../models/donorModel.js';
 import { CodeModel } from '../models/codeModel.js';
 import { enviarCodigoEmail } from '../services/emailService.js';
@@ -33,6 +34,7 @@ class AuthController {
 
     // ETAPA 2 DO CADASTRO: Valida o código, cria o usuário na tabela USERS e o perfil em DOADORES_PROFILES
     static async confirmarCadastroDoador(req, res) {
+        const connection = await pool.getConnection();
         try {
             const { email, codigo, password, nome, sobrenome, apelido_unico, cpf, avatar_url, bio, cadunico_file } = req.body;
 
@@ -40,28 +42,41 @@ class AuthController {
                 return res.status(400).json({ error: "E-mail e código são obrigatórios." });
             }
 
-            // Garante que o código seja tratado estritamente como string sem espaços extras
             const codigoFormatado = String(codigo).trim();
-
             const codigoValido = await CodeModel.validar(email, codigoFormatado, 'REGISTRO');
             if (!codigoValido) {
                 return res.status(400).json({ error: "Código de verificação inválido ou expirado." });
             }
 
+            await connection.beginTransaction();
+
             const password_hash = await bcrypt.hash(password, 10);
             
-            const userId = await DoadorModel.create(
-                { email, password_hash },
-                { nome, sobrenome, apelido_unico, cpf, avatar_url, bio, cadunico_file }
+            // 1. Cria o usuário principal
+            const [userResult] = await connection.query(
+                'INSERT INTO USERS (email, password_hash, user_type, is_active) VALUES (?, ?, "DOADOR", TRUE)',
+                [email, password_hash]
+            );
+            const userId = userResult.insertId;
+
+            // 2. Cria o perfil do doador
+            await connection.query(
+                `INSERT INTO DOADORES_PROFILES (user_id, nome, sobrenome, apelido_unico, cpf, avatar_url, bio, cadunico_file) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [userId, nome, sobrenome, apelido_unico, cpf || null, avatar_url || null, bio || null, cadunico_file || null]
             );
 
+            await connection.commit();
             await CodeModel.deletar(email, 'REGISTRO');
 
             return res.status(201).json({ message: "Doador cadastrado com sucesso!", userId });
             
         } catch (error) {
+            await connection.rollback();
             console.error("Erro ao confirmar cadastro:", error);
             return res.status(500).json({ error: "Erro ao confirmar cadastro: " + error.message });
+        } finally {
+            connection.release();
         }
     }
 
@@ -145,8 +160,9 @@ class AuthController {
         }
     }
 
-    // LOGIN/CADASTRO COM GOOGLE PARA DOADOR (Nome corrigido para bater com o authRoutes.js)
+    // LOGIN/CADASTRO COM GOOGLE PARA DOADOR
     static async loginGoogle(req, res) {
+        const connection = await pool.getConnection();
         try {
             const { token } = req.body;
 
@@ -163,15 +179,19 @@ class AuthController {
             if (!user) {
                 const apelido_unico = email.split('@')[0] + Math.floor(Math.random() * 1000);
                 
-                await DoadorModel.createFromGoogle(
-                    { email },
-                    {
-                        nome: given_name || 'Doador',
-                        sobrenome: family_name || 'Civvo',
-                        apelido_unico,
-                        avatar_url: picture || null
-                    }
+                await connection.beginTransaction();
+                const [userResult] = await connection.query(
+                    'INSERT INTO USERS (email, user_type, is_active) VALUES (?, "DOADOR", TRUE)',
+                    [email]
                 );
+                const userId = userResult.insertId;
+
+                await connection.query(
+                    `INSERT INTO DOADORES_PROFILES (user_id, nome, sobrenome, apelido_unico, avatar_url) 
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [userId, given_name || 'Doador', family_name || 'Civvo', apelido_unico, picture || null]
+                );
+                await connection.commit();
                 
                 user = await DoadorModel.findByEmail(email);
             }
@@ -199,8 +219,11 @@ class AuthController {
             });
 
         } catch (error) {
+            await connection.rollback();
             console.error("Erro no login com Google:", error);
             return res.status(401).json({ error: "Token do Google inválido ou expirado." });
+        } finally {
+            connection.release();
         }
     }
 }
