@@ -52,10 +52,10 @@ class AuthController {
 
             const password_hash = await bcrypt.hash(password, 10);
             
-            // 1. Cria o usuário principal
+            // 1. Cria o usuário principal (Passando 'DOADOR' por parâmetro para evitar erro de coluna)
             const [userResult] = await connection.query(
-                'INSERT INTO USERS (email, password_hash, user_type, is_active) VALUES (?, ?, "DOADOR", TRUE)',
-                [email, password_hash]
+                'INSERT INTO USERS (email, password_hash, user_type, is_active) VALUES (?, ?, ?, TRUE)',
+                [email, password_hash, 'DOADOR']
             );
             const userId = userResult.insertId;
 
@@ -181,8 +181,8 @@ class AuthController {
                 
                 await connection.beginTransaction();
                 const [userResult] = await connection.query(
-                    'INSERT INTO USERS (email, user_type, is_active) VALUES (?, "DOADOR", TRUE)',
-                    [email]
+                    'INSERT INTO USERS (email, user_type, is_active) VALUES (?, ?, TRUE)',
+                    [email, 'DOADOR']
                 );
                 const userId = userResult.insertId;
 
