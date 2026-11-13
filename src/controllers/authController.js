@@ -165,6 +165,7 @@ class AuthController {
         const connection = await pool.getConnection();
         try {
             // Aceita 'token', 'credential', 'idToken' ou 'id_token' vindo do front-end
+            console.log("BODY RECEBIDO DO FRONTEND:", JSON.stringify(req.body));
             const token = req.body.token || req.body.credential || req.body.idToken || req.body.id_token;
 
             if (!token) {
