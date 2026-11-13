@@ -3,6 +3,7 @@ import { uploadToCloudinary } from '../middlewares/uploadMiddleware.js';
 
 class UserController {
     // Exemplo no backend (userController.js ou profileController.js)
+// Exemplo no backend (userController.js ou profileController.js)
 static async obterPerfilPublico(req, res) {
     try {
         const { id } = req.params; // ID do usuário ou do perfil

@@ -3,7 +3,7 @@ import { pool } from '../config/conexao.js';
 import { uploadToCloudinary } from '../middlewares/uploadMiddleware.js';
 
 class PostController {
-    // Listar Feed (Passando o userId opcional para marcar se o usuário logado já curtiu cada post)
+    // Listar Feed (Traz postagens, mídias na nuvem, curtidas e comentários salvos)
     static async listarFeed(req, res) {
         try {
             const posts = await PostModel.listarFeed();
@@ -14,7 +14,7 @@ class PostController {
         }
     }
 
-    // Curtir ou Descurtir Post (Salva/Remove na tabela POST_LIKE)
+    // Curtir ou Descurtir Post (Salva de forma definitiva na tabela POST_LIKE)
     static async curtirPost(req, res) {
         try {
             const { postId } = req.params;
@@ -32,12 +32,11 @@ class PostController {
         }
     }
 
-    // Listar Comentários de um Post (Para todos verem ao abrir o post)
+    // Listar Comentários de um Post (Para qualquer visitante ver o que foi comentado)
     static async listarComentariosPost(req, res) {
         try {
             const { postId } = req.params;
 
-            // Busca os comentários ativos trazendo o nome e avatar de quem comentou (Doador ou ONG)
             const [comentarios] = await pool.query(
                 `SELECT 
                     c.id, 
@@ -69,7 +68,6 @@ class PostController {
         try {
             const { postId } = req.params;
             const userId = req.user?.userId || req.user?.id || req.userId;
-            // Aceita tanto 'content' quanto 'texto' ou 'comentario' vindo do front-end
             const content = req.body.content || req.body.texto || req.body.comentario;
             const { parentCommentId } = req.body;
 
@@ -119,7 +117,7 @@ class PostController {
         }
     }
 
-    // Criar Postagem (Com envio automático da foto para o Cloudinary)
+    // Criar Postagem (Envia a imagem direto para o Cloudinary e salva a URL permanente no MySQL)
     static async criarPostagem(req, res) {
         try {
             const ongId = req.ongId || req.user?.ongId || req.user?.ongProfileId || req.user?.id || req.userId || 1;
@@ -127,7 +125,7 @@ class PostController {
             
             let mediaList = req.body.mediaList || [];
 
-            // Se o front-end enviou um arquivo de imagem via FormData, sobe para o Cloudinary
+            // Se o front-end enviou um arquivo de imagem, sobe para o Cloudinary gerando link público definitivo
             if (req.file) {
                 const cloudUrl = await uploadToCloudinary(req.file.buffer);
                 mediaList = [{ file_url: cloudUrl, media_type: 'IMAGE' }];
@@ -148,7 +146,7 @@ class PostController {
         }
     }
 
-    // Editar Postagem (Atualiza legenda e, se houver nova foto, atualiza no Cloudinary)
+    // Editar Postagem (Atualiza legenda e imagem na nuvem de forma permanente)
     static async editarPostagem(req, res) {
         try {
             const { postId } = req.params;
@@ -158,7 +156,6 @@ class PostController {
 
             await PostModel.updatePost(postId, ongId, userType, caption);
 
-            // Se uma nova imagem foi enviada na edição, atualiza a URL na tabela POST_MEDIA
             if (req.file) {
                 const cloudUrl = await uploadToCloudinary(req.file.buffer);
                 await pool.query(
