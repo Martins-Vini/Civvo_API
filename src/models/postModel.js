@@ -50,25 +50,23 @@ class PostModel {
     static async listarFeed() {
         const [posts] = await pool.query(`
             SELECT 
-                p.*, 
-                o.nome_fantasia AS ong_nome, 
-                o.logo_url AS ong_logo,
-                o.cnpj AS ong_cnpj,
-                c.meta_valor, c.valor_atual, c.data_limite, c.status AS campanha_status,
-                v.vagas_disponiveis, v.data_limite_inscricao
+                p.id AS post_id,
+                p.ong_id,
+                p.type,
+                p.caption,
+                p.created_at,
+                o.nome_fantasia AS ong_nome,
+                o.logo_url AS ong_avatar,
+                m.file_url AS media_url,
+                m.media_type,
+                (SELECT COUNT(*) FROM POST_LIKE pl WHERE pl.post_id = p.id) AS total_likes,
+                (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS total_comments
             FROM POSTS p
             JOIN ONGS_PROFILES o ON p.ong_id = o.id
-            LEFT JOIN CAMPAIGN_DETAILS c ON p.id = c.post_id
-            LEFT JOIN VOLUNTARIADO_DETAILS v ON p.id = v.post_id
+            LEFT JOIN POST_MEDIA m ON p.id = m.post_id
             WHERE p.is_active = TRUE
             ORDER BY p.created_at DESC
         `);
-
-        for (let post of posts) {
-            const [media] = await pool.query(`SELECT file_url, media_type FROM POST_MEDIA WHERE post_id = ?`, [post.id]);
-            post.media = media;
-        }
-
         return posts;
     }
 
