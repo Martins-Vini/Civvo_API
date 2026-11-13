@@ -160,10 +160,12 @@ class AuthController {
         }
     }
 
+    // LOGIN/CADASTRO COM GOOGLE PARA DOADOR
     static async loginGoogle(req, res) {
         const connection = await pool.getConnection();
         try {
-            const { token } = req.body;
+            // Aceita 'token', 'credential', 'idToken' ou 'id_token' vindo do front-end
+            const token = req.body.token || req.body.credential || req.body.idToken || req.body.id_token;
 
             if (!token) {
                 return res.status(400).json({ error: "Token do Google não fornecido." });
@@ -223,7 +225,6 @@ class AuthController {
 
         } catch (error) {
             await connection.rollback();
-            // EXIBE O ERRO REAL NO CONSOLE E NA RESPOSTA PARA DIAGNÓSTICO
             console.error("Erro detalhado no login com Google:", error);
             return res.status(401).json({ error: "Erro Google Auth: " + error.message });
         } finally {
