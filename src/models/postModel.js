@@ -47,9 +47,10 @@ class PostModel {
         }
     }
 
-    static async listarFeed() {
+   static async listarFeed() {
         const [posts] = await pool.query(`
             SELECT 
+                p.id,
                 p.id AS post_id,
                 p.ong_id,
                 p.type,
@@ -60,13 +61,36 @@ class PostModel {
                 m.file_url AS media_url,
                 m.media_type,
                 (SELECT COUNT(*) FROM POST_LIKE pl WHERE pl.post_id = p.id) AS total_likes,
-                (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS total_comments
+                (SELECT COUNT(*) FROM POST_LIKE pl WHERE pl.post_id = p.id) AS likes_count,
+                (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS total_comments,
+                (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS comments_count
             FROM POSTS p
             JOIN ONGS_PROFILES o ON p.ong_id = o.id
             LEFT JOIN POST_MEDIA m ON p.id = m.post_id
             WHERE p.is_active = TRUE
             ORDER BY p.created_at DESC
         `);
+
+        for (let post of posts) {
+            const [comments] = await pool.query(`
+                SELECT 
+                    c.id,
+                    c.user_id,
+                    c.content,
+                    c.created_at,
+                    COALESCE(d.nome, o.nome_fantasia, 'Usuário') AS autor_nome,
+                    COALESCE(d.avatar_url, o.logo_url) AS autor_avatar
+                FROM POST_COMMENT c
+                JOIN USERS u ON c.user_id = u.id
+                LEFT JOIN DOADORES_PROFILES d ON u.id = d.user_id
+                LEFT JOIN ONGS_PROFILES o ON u.id = o.user_id
+                WHERE c.post_id = ? AND c.is_active = TRUE
+                ORDER BY c.created_at ASC
+            `, [post.id]);
+            post.comentarios = comments;
+            post.comments = comments;
+        }
+
         return posts;
     }
 
