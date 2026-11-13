@@ -6,6 +6,8 @@ const router = express.Router();
 // Rotas de Cadastro de Doador com verificação por e-mail
 router.post('/register/solicitar', AuthController.solicitarCadastroDoador);
 router.post('/register/confirmar', AuthController.confirmarCadastroDoador);
+router.post('/password/solicitar', AuthController.solicitarRecuperacaoSenha);
+router.post('/password/confirmar', AuthController.confirmarRecuperacaoSenha);
 
 // Rotas de Login de Doador com 2FA por e-mail
 router.post('/login/iniciar', AuthController.iniciarLogin);

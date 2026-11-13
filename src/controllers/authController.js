@@ -160,11 +160,14 @@ class AuthController {
         }
     }
 
-    // LOGIN/CADASTRO COM GOOGLE PARA DOADOR
     static async loginGoogle(req, res) {
         const connection = await pool.getConnection();
         try {
             const { token } = req.body;
+
+            if (!token) {
+                return res.status(400).json({ error: "Token do Google não fornecido." });
+            }
 
             const ticket = await client.verifyIdToken({
                 idToken: token,
@@ -220,10 +223,94 @@ class AuthController {
 
         } catch (error) {
             await connection.rollback();
-            console.error("Erro no login com Google:", error);
-            return res.status(401).json({ error: "Token do Google inválido ou expirado." });
+            // EXIBE O ERRO REAL NO CONSOLE E NA RESPOSTA PARA DIAGNÓSTICO
+            console.error("Erro detalhado no login com Google:", error);
+            return res.status(401).json({ error: "Erro Google Auth: " + error.message });
         } finally {
             connection.release();
+        }
+    }
+    // ETAPA 1 DA RECUPERAÇÃO DE SENHA: Envia o código para o e-mail
+    static async solicitarRecuperacaoSenha(req, res) {
+        try {
+            const { email } = req.body;
+            if (!email) {
+                return res.status(400).json({ error: "Informe o e-mail cadastrado." });
+            }
+
+            const user = await DoadorModel.findByEmail(email);
+            securityCheck: {
+                // Por segurança, mesmo se o e-mail não existir, podemos retornar sucesso 
+                // para evitar enumeração de contas, mas aqui retornamos 404 para facilitar seu teste local:
+                if (!user) {
+                    return res.status(404).json({ error: "E-mail não encontrado na plataforma." });
+                }
+            }
+
+            // Gera código de 6 dígitos e define validade de 15 minutos
+            const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+
+            // Salva diretamente nos campos 2FA/Recuperação da tabela USERS
+            await pool.query(
+                'UPDATE USERS SET two_factor_code = ?, two_factor_expires_at = ? WHERE email = ?',
+                [codigo, expiresAt, email]
+            );
+
+            // Envia o e-mail utilizando o serviço que você já tem configurado
+            await enviarCodigoEmail(email, codigo);
+
+            return res.status(200).json({ message: "Código de recuperação enviado para o seu e-mail!" });
+        } catch (error) {
+            console.error("Erro ao solicitar recuperação de senha:", error);
+            return res.status(500).json({ error: "Erro ao processar solicitação de recuperação." });
+        }
+    }
+
+    // ETAPA 2 DA RECUPERAÇÃO DE SENHA: Valida o código e altera a senha
+    static async confirmarRecuperacaoSenha(req, res) {
+        try {
+            const { email, codigo, novaSenha } = req.body;
+
+            if (!email || !codigo || !novaSenha) {
+                return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
+            }
+
+            const codigoFormatado = String(codigo).trim();
+
+            // Busca o usuário e valida o código e a expiração
+            const [rows] = await pool.query(
+                'SELECT id, two_factor_code, two_factor_expires_at FROM USERS WHERE email = ?',
+                [email]
+            );
+
+            if (rows.length === 0) {
+                return res.status(404).json({ error: "Usuário não encontrado." });
+            }
+
+            const user = rows[0];
+
+            if (!user.two_factor_code || user.two_factor_code !== codigoFormatado) {
+                return res.status(400).json({ error: "Código de verificação incorreto." });
+            }
+
+            if (new Date() > new Date(user.two_factor_expires_at)) {
+                return res.status(400).json({ error: "Este código expirou. Solicite um novo." });
+            }
+
+            // Criptografa a nova senha
+            const password_hash = await bcrypt.hash(novaSenha, 10);
+
+            // Atualiza a senha e limpa o código usado
+            await pool.query(
+                'UPDATE USERS SET password_hash = ?, two_factor_code = NULL, two_factor_expires_at = NULL WHERE id = ?',
+                [password_hash, user.id]
+            );
+
+            return res.status(200).json({ message: "Senha redefinida com sucesso! Faça login com sua nova senha." });
+        } catch (error) {
+            console.error("Erro ao confirmar recuperação de senha:", error);
+            return res.status(500).json({ error: "Erro ao redefinir a senha: " + error.message });
         }
     }
 }
