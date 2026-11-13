@@ -2,6 +2,27 @@ import { pool } from '../config/conexao.js';
 import { uploadToCloudinary } from '../middlewares/uploadMiddleware.js';
 
 class UserController {
+    // Exemplo no backend (userController.js ou profileController.js)
+static async obterPerfilPublico(req, res) {
+    try {
+        const { id } = req.params; // ID do usuário ou do perfil
+        // Busca perfil do doador ou da ONG unindo com a tabela USERS
+        const [perfil] = await pool.query(
+            `SELECT u.id, u.email, u.user_type, d.nome, d.sobrenome, d.apelido_unico, d.avatar_url, d.banner_url, d.bio 
+             FROM USERS u 
+             LEFT JOIN DOADORES_PROFILES d ON u.id = d.user_id 
+             WHERE u.id = ? AND u.is_active = TRUE`, 
+            [id]
+        );
+
+        if (perfil.length === 0) {
+            return res.status(404).json({ error: "Perfil não encontrado." });
+        }
+        return res.status(200).json(perfil[0]);
+    } catch (error) {
+        return res.status(500).json({ error: "Erro ao buscar perfil." });
+    }
+}
     static async atualizarPerfil(req, res) {
         try {
             const userId = req.user.userId; // Obtido do Token JWT

@@ -1,6 +1,9 @@
 import PostModel from '../models/postModel.js';
+import { pool } from '../config/conexao.js';
+import { uploadToCloudinary } from '../middlewares/uploadMiddleware.js';
 
 class PostController {
+    // Listar Feed (Passando o userId opcional para marcar se o usuário logado já curtiu cada post)
     static async listarFeed(req, res) {
         try {
             const posts = await PostModel.listarFeed();
@@ -11,10 +14,15 @@ class PostController {
         }
     }
 
+    // Curtir ou Descurtir Post (Salva/Remove na tabela POST_LIKE)
     static async curtirPost(req, res) {
         try {
             const { postId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user?.userId || req.user?.id || req.userId;
+
+            if (!userId) {
+                return res.status(401).json({ error: "Usuário não autenticado." });
+            }
 
             const resultado = await PostModel.toggleLike(postId, userId);
             return res.status(200).json(resultado);
@@ -24,14 +32,60 @@ class PostController {
         }
     }
 
+    // Listar Comentários de um Post (Para todos verem ao abrir o post)
+    static async listarComentariosPost(req, res) {
+        try {
+            const { postId } = req.params;
+
+            // Busca os comentários ativos trazendo o nome e avatar de quem comentou (Doador ou ONG)
+            const [comentarios] = await pool.query(
+                `SELECT 
+                    c.id, 
+                    c.post_id, 
+                    c.user_id, 
+                    c.parent_comment_id, 
+                    c.content, 
+                    c.created_at,
+                    COALESCE(d.nome, o.nome_fantasia, 'Usuário Civvo') AS autor_nome,
+                    COALESCE(d.avatar_url, o.logo_url) AS autor_avatar
+                 FROM POST_COMMENT c
+                 JOIN USERS u ON c.user_id = u.id
+                 LEFT JOIN DOADORES_PROFILES d ON u.id = d.user_id
+                 LEFT JOIN ONGS_PROFILES o ON u.id = o.user_id
+                 WHERE c.post_id = ? AND c.is_active = TRUE
+                 ORDER BY c.created_at ASC`,
+                [postId]
+            );
+
+            return res.status(200).json(comentarios);
+        } catch (error) {
+            console.error("Erro ao listar comentários:", error);
+            return res.status(500).json({ error: "Erro ao carregar comentários." });
+        }
+    }
+
+    // Comentar em um Post (Salva definitivamente na tabela POST_COMMENT)
     static async comentarPost(req, res) {
         try {
             const { postId } = req.params;
-            const userId = req.user.userId;
-            const { content, parentCommentId } = req.body;
+            const userId = req.user?.userId || req.user?.id || req.userId;
+            // Aceita tanto 'content' quanto 'texto' ou 'comentario' vindo do front-end
+            const content = req.body.content || req.body.texto || req.body.comentario;
+            const { parentCommentId } = req.body;
 
-            const commentId = await PostModel.addComment(postId, userId, content, parentCommentId);
-            return res.status(201).json({ message: "Comentário adicionado com sucesso!", commentId });
+            if (!userId) {
+                return res.status(401).json({ error: "Usuário não autenticado." });
+            }
+
+            if (!content || content.trim() === '') {
+                return res.status(400).json({ error: "O comentário não pode estar vazio." });
+            }
+
+            const commentId = await PostModel.addComment(postId, userId, content.trim(), parentCommentId || null);
+            return res.status(201).json({ 
+                message: "Comentário adicionado com sucesso!", 
+                commentId 
+            });
         } catch (error) {
             console.error("Erro ao comentar:", error);
             return res.status(500).json({ error: "Erro ao adicionar comentário." });
@@ -41,7 +95,7 @@ class PostController {
     static async compartilharPost(req, res) {
         try {
             const { postId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user?.userId || req.user?.id || req.userId;
 
             const shareId = await PostModel.sharePost(postId, userId);
             return res.status(201).json({ message: "Publicação compartilhada com sucesso!", shareId });
@@ -54,7 +108,7 @@ class PostController {
     static async denuciarPost(req, res) {
         try {
             const { postId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user?.userId || req.user?.id || req.userId;
             const { reason } = req.body;
 
             const reportId = await PostModel.reportPost(postId, userId, reason);
@@ -64,35 +118,55 @@ class PostController {
             return res.status(400).json({ error: error.message || "Erro ao registrar denúncia." });
         }
     }
-static async criarPostagem(req, res) {
+
+    // Criar Postagem (Com envio automático da foto para o Cloudinary)
+    static async criarPostagem(req, res) {
         try {
             const ongId = req.ongId || req.user?.ongId || req.user?.ongProfileId || req.user?.id || req.userId || 1;
+            const { type, caption, is_boosted, boosted_until, campaignData, volunteerData } = req.body;
+            
+            let mediaList = req.body.mediaList || [];
 
-            const { type, caption, is_boosted, boosted_until, mediaList, campaignData, volunteerData } = req.body;
+            // Se o front-end enviou um arquivo de imagem via FormData, sobe para o Cloudinary
+            if (req.file) {
+                const cloudUrl = await uploadToCloudinary(req.file.buffer);
+                mediaList = [{ file_url: cloudUrl, media_type: 'IMAGE' }];
+            }
 
             const postId = await PostModel.createPost(
                 ongId, 
-                { type, caption, is_boosted, boosted_until }, 
+                { type: type || 'POST', caption, is_boosted, boosted_until }, 
                 mediaList, 
                 campaignData, 
                 volunteerData
             );
 
-            return res.status(201).json({ message: "Publicação criada com sucesso!", postId });
+            return res.status(201).json({ message: "Publicação criada com sucesso!", postId, mediaList });
         } catch (error) {
             console.error("Erro ao criar publicação:", error);
             return res.status(500).json({ error: error.message || "Erro ao criar publicação." });
         }
     }
 
-   static async editarPostagem(req, res) {
+    // Editar Postagem (Atualiza legenda e, se houver nova foto, atualiza no Cloudinary)
+    static async editarPostagem(req, res) {
         try {
             const { postId } = req.params;
             const { caption } = req.body;
             const ongId = req.ongId || req.user?.ongId || req.user?.ongProfileId || req.user?.id || req.userId || 1;
-            const userType = req.user?.user_type || 'ONG';
+            const userType = req.user?.user_type || req.user?.userType || 'ONG';
 
             await PostModel.updatePost(postId, ongId, userType, caption);
+
+            // Se uma nova imagem foi enviada na edição, atualiza a URL na tabela POST_MEDIA
+            if (req.file) {
+                const cloudUrl = await uploadToCloudinary(req.file.buffer);
+                await pool.query(
+                    'UPDATE POST_MEDIA SET file_url = ? WHERE post_id = ?',
+                    [cloudUrl, postId]
+                );
+            }
+
             return res.status(200).json({ message: "Publicação atualizada com sucesso!" });
         } catch (error) {
             console.error("Erro ao editar publicação:", error);
@@ -104,7 +178,7 @@ static async criarPostagem(req, res) {
         try {
             const { postId } = req.params;
             const ongId = req.ongId || req.user?.ongId || req.user?.ongProfileId || req.user?.id || req.userId || 1;
-            const userType = req.user?.user_type || 'ONG';
+            const userType = req.user?.user_type || req.user?.userType || 'ONG';
 
             await PostModel.deletePost(postId, ongId, userType);
             return res.status(200).json({ message: "Publicação excluída com sucesso!" });
@@ -117,7 +191,7 @@ static async criarPostagem(req, res) {
     static async candidatarVoluntariado(req, res) {
         try {
             const { postId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user?.userId || req.user?.id || req.userId;
 
             const applicationId = await PostModel.applyVolunteer(postId, userId);
             return res.status(201).json({ message: "Candidatura realizada com sucesso!", applicationId });
@@ -129,7 +203,7 @@ static async criarPostagem(req, res) {
 
     static async listarHistoricoCurtidas(req, res) {
         try {
-            const userId = req.user.userId;
+            const userId = req.user?.userId || req.user?.id || req.userId;
             const posts = await PostModel.getLikedPostsByUser(userId);
             return res.status(200).json(posts);
         } catch (error) {
@@ -140,7 +214,7 @@ static async criarPostagem(req, res) {
 
     static async listarHistoricoComentarios(req, res) {
         try {
-            const userId = req.user.userId;
+            const userId = req.user?.userId || req.user?.id || req.userId;
             const comments = await PostModel.getCommentHistoryByUser(userId);
             return res.status(200).json(comments);
         } catch (error) {
@@ -151,10 +225,10 @@ static async criarPostagem(req, res) {
 
     static async listarHistoricoVoluntariado(req, res) {
         try {
-            const targetUserId = req.params.userId || req.user.userId;
-            const requestingUserId = req.user.userId;
+            const userId = req.user?.userId || req.user?.id || req.userId;
+            const targetUserId = req.params.userId || userId;
 
-            const posts = await PostModel.getVolunteerHistoryByUser(targetUserId, requestingUserId);
+            const posts = await PostModel.getVolunteerHistoryByUser(targetUserId, userId);
             return res.status(200).json(posts);
         } catch (error) {
             console.error("Erro ao listar histórico de voluntariado:", error);
