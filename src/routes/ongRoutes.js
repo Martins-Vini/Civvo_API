@@ -1,14 +1,14 @@
 import express from 'express';
 import { OngAuthController } from '../controllers/ongController.js';
 import { verificarAutenticacaoOng } from '../middlewares/authOngMiddleware.js';
-import {verificarToken} from '../middlewares/authMiddleware.js';
+import { verificarToken } from '../middlewares/authMiddleware.js';
+import { pool } from '../config/conexao.js'; // 1. Importação correta do pool
 
 const router = express.Router();
 
 router.post('/register/ong', OngAuthController.cadastrarOng);
 router.post('/login/ong', OngAuthController.entrarOng);
 
-// Exemplo de rota protegida que requer a sessão JWT da ONG ativa
 router.get('/perfil', verificarAutenticacaoOng, (req, res) => {
     return res.status(200).json({ 
         message: "Acesso autorizado à área restrita da ONG!", 
@@ -16,9 +16,14 @@ router.get('/perfil', verificarAutenticacaoOng, (req, res) => {
         ongProfileId: req.ongProfileId 
     });
 });
+
 router.delete('/account', verificarToken, async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user?.userId || req.user?.id; // 2. Correção para pegar o ID correto do token
+        if (!userId) {
+            return res.status(401).json({ error: "Usuário não autenticado." });
+        }
+
         await pool.query('UPDATE USERS SET is_active = FALSE WHERE id = ?', [userId]);
         return res.status(200).json({ message: 'Conta da ONG desativada com sucesso.' });
     } catch (error) {

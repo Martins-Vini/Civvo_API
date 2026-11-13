@@ -47,7 +47,8 @@ class PostModel {
         }
     }
 
-   static async listarFeed() {
+    static async listarFeed() {
+        // Busca todos os posts ativos com dados da ONG
         const [posts] = await pool.query(`
             SELECT 
                 p.id,
@@ -58,27 +59,35 @@ class PostModel {
                 p.created_at,
                 o.nome_fantasia AS ong_nome,
                 o.logo_url AS ong_avatar,
-                m.file_url AS media_url,
-                m.media_type,
                 (SELECT COUNT(*) FROM POST_LIKE pl WHERE pl.post_id = p.id) AS total_likes,
                 (SELECT COUNT(*) FROM POST_LIKE pl WHERE pl.post_id = p.id) AS likes_count,
                 (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS total_comments,
                 (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS comments_count
             FROM POSTS p
             JOIN ONGS_PROFILES o ON p.ong_id = o.id
-            LEFT JOIN POST_MEDIA m ON p.id = m.post_id
             WHERE p.is_active = TRUE
             ORDER BY p.created_at DESC
         `);
 
+        // Para cada post, injeta a mídia da nuvem e os comentários reais do banco
         for (let post of posts) {
+            const [media] = await pool.query(`
+                SELECT file_url, media_type 
+                FROM POST_MEDIA 
+                WHERE post_id = ? AND is_active = TRUE
+            `, [post.id]);
+            
+            post.media = media;
+            post.media_url = media.length > 0 ? media[0].file_url : null;
+            post.media_type = media.length > 0 ? media[0].media_type : null;
+
             const [comments] = await pool.query(`
                 SELECT 
                     c.id,
                     c.user_id,
                     c.content,
                     c.created_at,
-                    COALESCE(d.nome, o.nome_fantasia, 'Usuário') AS autor_nome,
+                    COALESCE(d.nome, o.nome_fantasia, 'Usuário Civvo') AS autor_nome,
                     COALESCE(d.avatar_url, o.logo_url) AS autor_avatar
                 FROM POST_COMMENT c
                 JOIN USERS u ON c.user_id = u.id
@@ -87,6 +96,7 @@ class PostModel {
                 WHERE c.post_id = ? AND c.is_active = TRUE
                 ORDER BY c.created_at ASC
             `, [post.id]);
+            
             post.comentarios = comments;
             post.comments = comments;
         }
@@ -153,32 +163,30 @@ class PostModel {
     }
 
     static async deletePost(postId, user) {
-    const connection = await pool.getConnection();
-    try {
-        // Se for ADMIN, pode apagar qualquer post diretamente
-        if (user.userType === 'ADMIN' || user.role_level) {
+        const connection = await pool.getConnection();
+        try {
+            if (user.userType === 'ADMIN' || user.role_level) {
+                const [result] = await connection.query(`DELETE FROM POSTS WHERE id = ?`, [postId]);
+                return result.affectedRows > 0;
+            }
+
+            const [posts] = await connection.query(
+                `SELECT p.id FROM POSTS p 
+                 JOIN ONGS_PROFILES o ON p.ong_id = o.id 
+                 WHERE p.id = ? AND o.user_id = ?`,
+                [postId, user.userId]
+            );
+
+            if (posts.length === 0) {
+                return false;
+            }
+
             const [result] = await connection.query(`DELETE FROM POSTS WHERE id = ?`, [postId]);
             return result.affectedRows > 0;
+        } finally {
+            connection.release();
         }
-
-        // Se for ONG, valida se o post pertence à ONG dela
-        const [posts] = await connection.query(
-            `SELECT p.id FROM POSTS p 
-             JOIN ONGS_PROFILES o ON p.ong_id = o.id 
-             WHERE p.id = ? AND o.user_id = ?`,
-            [postId, user.userId]
-        );
-
-        if (posts.length === 0) {
-            return false; // Não encontrado ou sem permissão
-        }
-
-        const [result] = await connection.query(`DELETE FROM POSTS WHERE id = ?`, [postId]);
-        return result.affectedRows > 0;
-    } finally {
-        connection.release();
     }
-}
 
     static async applyVolunteer(postId, userId) {
         const connection = await pool.getConnection();

@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
+import { pool } from '../config/conexao.js';
 
-export function verificarAutenticacaoOng(req, res, next) {
+export async function verificarAutenticacaoOng(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
@@ -19,7 +20,7 @@ export function verificarAutenticacaoOng(req, res, next) {
 
     const secret = process.env.JWT_SECRET;
 
-    jwt.verify(token, secret, (err, decoded) => {
+    jwt.verify(token, secret, async (err, decoded) => {
         if (err) {
             return res.status(401).json({ error: "Token inválido ou expirado." });
         }
@@ -28,9 +29,21 @@ export function verificarAutenticacaoOng(req, res, next) {
             return res.status(403).json({ error: "Acesso negado. Apenas perfis de ONG podem acessar este recurso." });
         }
 
-        req.userId = decoded.userId;
-        req.ongProfileId = decoded.ongProfileId;
-        req.userType = decoded.userType;
-        return next();
+        try {
+            const userId = decoded.userId || decoded.id;
+            const [rows] = await pool.query('SELECT id, is_active FROM USERS WHERE id = ?', [userId]);
+
+            if (rows.length === 0 || !rows[0].is_active) {
+                return res.status(401).json({ error: "Esta conta de ONG foi desativada." });
+            }
+
+            req.userId = userId;
+            req.ongProfileId = decoded.ongProfileId;
+            req.userType = decoded.userType;
+            return next();
+        } catch (dbError) {
+            console.error("Erro ao validar status da ONG:", dbError);
+            return res.status(500).json({ error: "Erro interno na autenticação." });
+        }
     });
 }
