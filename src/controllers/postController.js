@@ -117,23 +117,32 @@ class PostController {
         }
     }
 
-    // Criar Postagem (Envia a imagem direto para o Cloudinary e salva a URL permanente no MySQL)
+    // Criar Postagem (Recebe arquivos reais via multipart/form-data, sobe cada um para o Cloudinary
+    // e salva as URLs permanentes no MySQL. Não existe mais a opção de colar um link de imagem.)
     static async criarPostagem(req, res) {
         try {
             const ongId = req.ongId || req.user?.ongId || req.user?.ongProfileId || req.user?.id || req.userId || 1;
-            const { type, caption, is_boosted, boosted_until, campaignData, volunteerData } = req.body;
-            
-            let mediaList = req.body.mediaList || [];
+            const { type, caption, is_boosted, boosted_until } = req.body;
 
-            // Se o front-end enviou um arquivo de imagem, sobe para o Cloudinary gerando link público definitivo
-            if (req.file) {
-                const cloudUrl = await uploadToCloudinary(req.file.buffer);
-                mediaList = [{ file_url: cloudUrl, media_type: 'IMAGE' }];
+            // Como o corpo agora é multipart/form-data (por causa dos arquivos), objetos aninhados
+            // chegam como texto JSON — o front-end usa JSON.stringify antes de anexar ao FormData.
+            const campaignData = req.body.campaignData ? JSON.parse(req.body.campaignData) : null;
+            const volunteerData = req.body.volunteerData ? JSON.parse(req.body.volunteerData) : null;
+
+            let mediaList = [];
+            if (req.files && req.files.length > 0) {
+                const urls = await Promise.all(req.files.map((f) => uploadToCloudinary(f.buffer)));
+                mediaList = urls.map((url) => ({ file_url: url, media_type: 'IMAGE' }));
             }
 
             const postId = await PostModel.createPost(
                 ongId, 
-                { type: type || 'POST', caption, is_boosted, boosted_until }, 
+                { 
+                    type: type || 'POST', 
+                    caption, 
+                    is_boosted: is_boosted === 'true' || is_boosted === true, 
+                    boosted_until: boosted_until || null 
+                }, 
                 mediaList, 
                 campaignData, 
                 volunteerData

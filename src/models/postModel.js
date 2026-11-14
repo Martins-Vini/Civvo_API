@@ -47,8 +47,7 @@ class PostModel {
         }
     }
 
-    static async listarFeed() {
-        // Busca todos os posts ativos com dados da ONG
+    static async listarFeed(userIdAtual = null) {
         const [posts] = await pool.query(`
             SELECT 
                 p.id,
@@ -60,16 +59,13 @@ class PostModel {
                 o.nome_fantasia AS ong_nome,
                 o.logo_url AS ong_avatar,
                 (SELECT COUNT(*) FROM POST_LIKE pl WHERE pl.post_id = p.id) AS total_likes,
-                (SELECT COUNT(*) FROM POST_LIKE pl WHERE pl.post_id = p.id) AS likes_count,
-                (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS total_comments,
-                (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS comments_count
+                (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS total_comments
             FROM POSTS p
             JOIN ONGS_PROFILES o ON p.ong_id = o.id
             WHERE p.is_active = TRUE
             ORDER BY p.created_at DESC
         `);
 
-        // Para cada post, injeta a mídia da nuvem e os comentários reais do banco
         for (let post of posts) {
             const [media] = await pool.query(`
                 SELECT file_url, media_type 
@@ -81,10 +77,21 @@ class PostModel {
             post.media_url = media.length > 0 ? media[0].file_url : null;
             post.media_type = media.length > 0 ? media[0].media_type : null;
 
+            let likedByMe = false;
+            if (userIdAtual) {
+                const [likeCheck] = await pool.query(`
+                    SELECT 1 FROM POST_LIKE WHERE post_id = ? AND user_id = ?
+                `, [post.id, userIdAtual]);
+                likedByMe = likeCheck.length > 0;
+            }
+            post.liked = likedByMe;
+
             const [comments] = await pool.query(`
                 SELECT 
                     c.id,
+                    c.post_id,
                     c.user_id,
+                    c.parent_comment_id,
                     c.content,
                     c.created_at,
                     COALESCE(d.nome, o.nome_fantasia, 'Usuário Civvo') AS autor_nome,
@@ -98,7 +105,8 @@ class PostModel {
             `, [post.id]);
             
             post.comentarios = comments;
-            post.comments = comments;
+            post.comments = comments.length;
+            post.total_comments = comments.length;
         }
 
         return posts;
@@ -109,7 +117,25 @@ class PostModel {
             `INSERT INTO POST_COMMENT (post_id, user_id, content, parent_comment_id) VALUES (?, ?, ?, ?)`,
             [postId, userId, content, parentCommentId || null]
         );
-        return result.insertId;
+        
+        const [newComment] = await pool.query(`
+            SELECT 
+                c.id,
+                c.post_id,
+                c.user_id,
+                c.parent_comment_id,
+                c.content,
+                c.created_at,
+                COALESCE(d.nome, o.nome_fantasia, 'Usuário Civvo') AS autor_nome,
+                COALESCE(d.avatar_url, o.logo_url) AS autor_avatar
+            FROM POST_COMMENT c
+            JOIN USERS u ON c.user_id = u.id
+            LEFT JOIN DOADORES_PROFILES d ON u.id = d.user_id
+            LEFT JOIN ONGS_PROFILES o ON u.id = o.user_id
+            WHERE c.id = ?
+        `, [result.insertId]);
+
+        return newComment[0];
     }
 
     static async toggleLike(postId, userId) {
@@ -120,11 +146,19 @@ class PostModel {
 
         if (existing.length > 0) {
             await pool.query(`DELETE FROM POST_LIKE WHERE post_id = ? AND user_id = ?`, [postId, userId]);
-            return { liked: false };
         } else {
             await pool.query(`INSERT INTO POST_LIKE (post_id, user_id) VALUES (?, ?)`, [postId, userId]);
-            return { liked: true };
         }
+
+        const [countResult] = await pool.query(
+            `SELECT COUNT(*) AS total FROM POST_LIKE WHERE post_id = ?`,
+            [postId]
+        );
+
+        return { 
+            liked: existing.length === 0, 
+            total_likes: countResult[0].total 
+        };
     }
 
     static async sharePost(postId, userId) {
@@ -162,30 +196,24 @@ class PostModel {
         return true;
     }
 
-    static async deletePost(postId, user) {
-        const connection = await pool.getConnection();
-        try {
-            if (user.userType === 'ADMIN' || user.role_level) {
-                const [result] = await connection.query(`DELETE FROM POSTS WHERE id = ?`, [postId]);
-                return result.affectedRows > 0;
-            }
-
-            const [posts] = await connection.query(
-                `SELECT p.id FROM POSTS p 
-                 JOIN ONGS_PROFILES o ON p.ong_id = o.id 
-                 WHERE p.id = ? AND o.user_id = ?`,
-                [postId, user.userId]
-            );
-
-            if (posts.length === 0) {
-                return false;
-            }
-
-            const [result] = await connection.query(`DELETE FROM POSTS WHERE id = ?`, [postId]);
+    static async deletePost(postId, ongId, userType) {
+        // ADMIN pode excluir qualquer publicação.
+        if (userType === 'ADMIN') {
+            const [result] = await pool.query(`DELETE FROM POSTS WHERE id = ?`, [postId]);
             return result.affectedRows > 0;
-        } finally {
-            connection.release();
         }
+
+        // ONG só pode excluir a própria publicação (mesma convenção usada em updatePost).
+        const [result] = await pool.query(
+            `DELETE FROM POSTS WHERE id = ? AND ong_id = ?`,
+            [postId, ongId]
+        );
+
+        if (result.affectedRows === 0) {
+            throw new Error("Publicação não encontrada ou sem permissão para excluir.");
+        }
+
+        return true;
     }
 
     static async applyVolunteer(postId, userId) {

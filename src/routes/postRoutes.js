@@ -8,8 +8,8 @@ const router = Router();
 // Feed público (qualquer pessoa visualiza as postagens e imagens da nuvem)
 router.get('/feed', PostController.listarFeed);
 
-// CRUD de Postagens (Com suporte a upload de imagem para o Cloudinary)
-router.post('/', verificarToken, upload.single('image'), PostController.criarPostagem);
+// CRUD de Postagens (Com suporte a upload de até 10 imagens reais para o Cloudinary)
+router.post('/', verificarToken, upload.array('images', 10), PostController.criarPostagem);
 router.put('/:postId', verificarToken, upload.single('image'), PostController.editarPostagem);
 router.delete('/:postId', verificarToken, PostController.deletarPostagem);
 
