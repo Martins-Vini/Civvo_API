@@ -20,6 +20,8 @@ router.post('/:postId/curtir', verificarToken, PostController.curtirPost);
 router.get('/:postId/comentarios', PostController.listarComentariosPost);
 router.post('/:postId/comentar', verificarToken, PostController.comentarPost);
 router.post('/:postId/comentarios', verificarToken, PostController.comentarPost); // Alias de segurança caso o front use /comentarios
+router.put('/:postId/comentarios/:commentId', verificarToken, PostController.editarComentario);
+router.delete('/:postId/comentarios/:commentId', verificarToken, PostController.excluirComentario);
 
 // Interações extras e Voluntariado
 router.post('/:postId/compartilhar', verificarToken, PostController.compartilharPost);

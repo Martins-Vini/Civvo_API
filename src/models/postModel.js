@@ -37,6 +37,16 @@ class PostModel {
                 );
             }
 
+            // Notifica quem segue a ONG (doadores e outras ONGs): uma linha por seguidor.
+            await connection.query(
+                `INSERT INTO NOTIFICATIONS (user_id, type, ong_id, post_id)
+                 SELECT f.follower_id, 'NOVO_POST', o.id, ?
+                 FROM ONGS_PROFILES o
+                 JOIN USER_FOLLOWERS f ON f.following_id = o.user_id
+                 WHERE o.id = ?`,
+                [postId, ongId]
+            );
+
             await connection.commit();
             return postId;
         } catch (error) {
@@ -55,9 +65,11 @@ class PostModel {
                 p.ong_id,
                 p.type,
                 p.caption,
+                p.is_edited,
                 p.created_at,
                 o.nome_fantasia AS ong_nome,
                 o.logo_url AS ong_avatar,
+                (SELECT COUNT(*) FROM USER_FOLLOWERS uf WHERE uf.following_id = o.user_id) AS ong_seguidores,
                 (SELECT COUNT(*) FROM POST_LIKE pl WHERE pl.post_id = p.id) AS total_likes,
                 (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS total_comments
             FROM POSTS p
@@ -93,6 +105,7 @@ class PostModel {
                     c.user_id,
                     c.parent_comment_id,
                     c.content,
+                    c.is_edited,
                     c.created_at,
                     COALESCE(d.nome, o.nome_fantasia, 'Usuário Civvo') AS autor_nome,
                     COALESCE(d.avatar_url, o.logo_url) AS autor_avatar
@@ -125,6 +138,7 @@ class PostModel {
                 c.user_id,
                 c.parent_comment_id,
                 c.content,
+                c.is_edited,
                 c.created_at,
                 COALESCE(d.nome, o.nome_fantasia, 'Usuário Civvo') AS autor_nome,
                 COALESCE(d.avatar_url, o.logo_url) AS autor_avatar
@@ -136,6 +150,54 @@ class PostModel {
         `, [result.insertId]);
 
         return newComment[0];
+    }
+
+    // Editar comentário: só quem escreveu pode editar o próprio comentário.
+    static async editComment(postId, commentId, userId, content) {
+        const [result] = await pool.query(
+            `UPDATE POST_COMMENT 
+             SET content = ?, is_edited = TRUE, updated_at = NOW() 
+             WHERE id = ? AND post_id = ? AND user_id = ? AND is_active = TRUE`,
+            [content, commentId, postId, userId]
+        );
+
+        if (result.affectedRows === 0) {
+            throw new Error("Comentário não encontrado ou sem permissão para editar.");
+        }
+        return true;
+    }
+
+    // Excluir comentário (soft delete, mesmo padrão de is_active usado no resto do app):
+    // - quem escreveu o comentário pode excluir o próprio, OU
+    // - a ONG dona da publicação pode excluir qualquer comentário nela (moderação), mas não editar.
+    static async deleteComment(postId, commentId, userId, ongId, userType) {
+        if (userType === 'ADMIN') {
+            const [result] = await pool.query(
+                `UPDATE POST_COMMENT SET is_active = FALSE WHERE id = ? AND post_id = ?`,
+                [commentId, postId]
+            );
+            if (result.affectedRows === 0) throw new Error("Comentário não encontrado.");
+            return true;
+        }
+
+        const [dono] = await pool.query(
+            `UPDATE POST_COMMENT SET is_active = FALSE WHERE id = ? AND post_id = ? AND user_id = ?`,
+            [commentId, postId, userId]
+        );
+        if (dono.affectedRows > 0) return true;
+
+        const [moderacao] = await pool.query(
+            `UPDATE POST_COMMENT c
+             JOIN POSTS p ON c.post_id = p.id
+             SET c.is_active = FALSE
+             WHERE c.id = ? AND c.post_id = ? AND p.ong_id = ?`,
+            [commentId, postId, ongId]
+        );
+
+        if (moderacao.affectedRows === 0) {
+            throw new Error("Comentário não encontrado ou sem permissão para excluir.");
+        }
+        return true;
     }
 
     static async toggleLike(postId, userId) {
@@ -181,7 +243,7 @@ class PostModel {
     }
 
     static async updatePost(postId, ongId, userType, caption) {
-        let query = `UPDATE POSTS SET caption = ? WHERE id = ?`;
+        let query = `UPDATE POSTS SET caption = ?, is_edited = TRUE WHERE id = ?`;
         let params = [caption, postId];
 
         if (userType !== 'ADMIN') {

@@ -44,6 +44,7 @@ class PostController {
                     c.user_id, 
                     c.parent_comment_id, 
                     c.content, 
+                    c.is_edited,
                     c.created_at,
                     COALESCE(d.nome, o.nome_fantasia, 'Usuário Civvo') AS autor_nome,
                     COALESCE(d.avatar_url, o.logo_url) AS autor_avatar
@@ -87,6 +88,48 @@ class PostController {
         } catch (error) {
             console.error("Erro ao comentar:", error);
             return res.status(500).json({ error: "Erro ao adicionar comentário." });
+        }
+    }
+
+    // Editar comentário: só o autor do comentário pode editar (nunca a ONG dona do post).
+    static async editarComentario(req, res) {
+        try {
+            const { postId, commentId } = req.params;
+            const userId = req.user?.userId || req.user?.id || req.userId;
+            const content = req.body.content || req.body.texto || req.body.comentario;
+
+            if (!userId) {
+                return res.status(401).json({ error: "Usuário não autenticado." });
+            }
+            if (!content || content.trim() === '') {
+                return res.status(400).json({ error: "O comentário não pode estar vazio." });
+            }
+
+            await PostModel.editComment(postId, commentId, userId, content.trim());
+            return res.status(200).json({ message: "Comentário atualizado com sucesso!" });
+        } catch (error) {
+            console.error("Erro ao editar comentário:", error);
+            return res.status(400).json({ error: error.message || "Erro ao editar comentário." });
+        }
+    }
+
+    // Excluir comentário: o autor exclui o próprio OU a ONG dona da publicação modera (exclui) qualquer um.
+    static async excluirComentario(req, res) {
+        try {
+            const { postId, commentId } = req.params;
+            const userId = req.user?.userId || req.user?.id || req.userId;
+            const ongId = req.ongId || req.user?.ongId || req.user?.ongProfileId || req.user?.id || req.userId || 1;
+            const userType = req.user?.user_type || req.user?.userType || 'ONG';
+
+            if (!userId) {
+                return res.status(401).json({ error: "Usuário não autenticado." });
+            }
+
+            await PostModel.deleteComment(postId, commentId, userId, ongId, userType);
+            return res.status(200).json({ message: "Comentário excluído com sucesso!" });
+        } catch (error) {
+            console.error("Erro ao excluir comentário:", error);
+            return res.status(400).json({ error: error.message || "Erro ao excluir comentário." });
         }
     }
 

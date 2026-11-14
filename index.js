@@ -5,11 +5,12 @@ import cors from "cors";
 import rotasAuth from "./src/routes/authRoutes.js";
 import ongRoutes from './src/routes/ongRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
-import postRoutes from './src/routes/postRoutes.js';      
-import momentRoutes from './src/routes/momentsRoutes.js';  
-import donationRoutes from './src/routes/donationRoutes.js'; 
+import postRoutes from './src/routes/postRoutes.js';
+import momentRoutes from './src/routes/momentsRoutes.js';
+import donationRoutes from './src/routes/donationRoutes.js';
 import donorRoutes from './src/routes/donorRoutes.js';
 import followerRoutes from './src/routes/followerRoutes.js';
+import notificationRoutes from './src/routes/notificationRoutes.js';
 import setupChatSocket from './src/services/chatSocket.js';
 import chatRoutes from './src/routes/chatRoutes.js';
 
@@ -52,11 +53,12 @@ server.get("/teste", (req, res) => {
 server.use("/api/auth", rotasAuth);
 server.use("/api/ong", ongRoutes);
 server.use('/api/admin', adminRoutes);
-server.use('/api/posts', postRoutes);        
-server.use('/api/moments', momentRoutes);    
+server.use('/api/posts', postRoutes);
+server.use('/api/moments', momentRoutes);
 server.use('/api/donations', donationRoutes);
 server.use('/api/donor', donorRoutes);
-server.use('/api/followers', followerRoutes); // Nova rota de seguidores
+server.use('/api/followers', followerRoutes);
+server.use('/api/notificacoes', notificationRoutes); // Notificações (novas publicações de quem você segue)
 server.use('/api/chat', chatRoutes);
 
 const PORT = process.env.PORT || door;
