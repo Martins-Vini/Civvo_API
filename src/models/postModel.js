@@ -167,37 +167,57 @@ class PostModel {
         return true;
     }
 
-    // Excluir comentário (soft delete, mesmo padrão de is_active usado no resto do app):
-    // - quem escreveu o comentário pode excluir o próprio, OU
-    // - a ONG dona da publicação pode excluir qualquer comentário nela (moderação), mas não editar.
+    // Excluir comentário (soft delete, mesmo padrão de is_active usado no resto do app).
+    // Quem pode: ADMIN, quem escreveu o comentário, ou a ONG dona da publicação (moderação).
+    // Em cascata: as respostas (e as respostas das respostas) saem junto com o comentário.
     static async deleteComment(postId, commentId, userId, ongId, userType) {
-        if (userType === 'ADMIN') {
-            const [result] = await pool.query(
-                `UPDATE POST_COMMENT SET is_active = FALSE WHERE id = ? AND post_id = ?`,
-                [commentId, postId]
-            );
-            if (result.affectedRows === 0) throw new Error("Comentário não encontrado.");
-            return true;
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            let permitido;
+            if (userType === 'ADMIN') {
+                [permitido] = await connection.query(
+                    `SELECT id FROM POST_COMMENT WHERE id = ? AND post_id = ? AND is_active = TRUE`,
+                    [commentId, postId]
+                );
+            } else {
+                [permitido] = await connection.query(
+                    `SELECT c.id FROM POST_COMMENT c
+                     JOIN POSTS p ON p.id = c.post_id
+                     WHERE c.id = ? AND c.post_id = ? AND c.is_active = TRUE
+                       AND (c.user_id = ? OR p.ong_id = ?)`,
+                    [commentId, postId, userId, ongId ?? 0]
+                );
+            }
+
+            if (!permitido.length) {
+                throw new Error("Comentário não encontrado ou sem permissão para excluir.");
+            }
+
+            // Coleta o comentário + todas as respostas, nível por nível.
+            const ids = [Number(commentId)];
+            let fronteira = [Number(commentId)];
+            while (fronteira.length) {
+                const [filhos] = await connection.query(
+                    `SELECT id FROM POST_COMMENT
+                     WHERE post_id = ? AND parent_comment_id IN (?) AND is_active = TRUE`,
+                    [postId, fronteira]
+                );
+                fronteira = filhos.map((r) => r.id).filter((id) => !ids.includes(id));
+                ids.push(...fronteira);
+            }
+
+            await connection.query(`UPDATE POST_COMMENT SET is_active = FALSE WHERE id IN (?)`, [ids]);
+
+            await connection.commit();
+            return ids.length; // quantos comentários saíram (o próprio + respostas)
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
         }
-
-        const [dono] = await pool.query(
-            `UPDATE POST_COMMENT SET is_active = FALSE WHERE id = ? AND post_id = ? AND user_id = ?`,
-            [commentId, postId, userId]
-        );
-        if (dono.affectedRows > 0) return true;
-
-        const [moderacao] = await pool.query(
-            `UPDATE POST_COMMENT c
-             JOIN POSTS p ON c.post_id = p.id
-             SET c.is_active = FALSE
-             WHERE c.id = ? AND c.post_id = ? AND p.ong_id = ?`,
-            [commentId, postId, ongId]
-        );
-
-        if (moderacao.affectedRows === 0) {
-            throw new Error("Comentário não encontrado ou sem permissão para excluir.");
-        }
-        return true;
     }
 
     static async toggleLike(postId, userId) {

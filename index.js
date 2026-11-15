@@ -7,10 +7,13 @@ import ongRoutes from './src/routes/ongRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
 import postRoutes from './src/routes/postRoutes.js';
 import momentRoutes from './src/routes/momentsRoutes.js';
+import momentExtraRoutes from './src/routes/momentExtraRouter.js';
 import donationRoutes from './src/routes/donationRoutes.js';
 import donorRoutes from './src/routes/donorRoutes.js';
 import followerRoutes from './src/routes/followerRoutes.js';
 import notificationRoutes from './src/routes/notificationRoutes.js';
+import commentReportRoutes from './src/routes/commentReportRoutes.js';
+import perfilRoutes from './src/routes/perfilRoutes.js';
 import setupChatSocket from './src/services/chatSocket.js';
 import chatRoutes from './src/routes/chatRoutes.js';
 
@@ -54,11 +57,14 @@ server.use("/api/auth", rotasAuth);
 server.use("/api/ong", ongRoutes);
 server.use('/api/admin', adminRoutes);
 server.use('/api/posts', postRoutes);
+server.use('/api/moments', momentExtraRoutes); // upload, "visto" e exclusão de momentos (antes do momentRoutes)
 server.use('/api/moments', momentRoutes);
 server.use('/api/donations', donationRoutes);
 server.use('/api/donor', donorRoutes);
 server.use('/api/followers', followerRoutes);
-server.use('/api/notificacoes', notificationRoutes); // Notificações (novas publicações de quem você segue)
+server.use('/api/comentarios', commentReportRoutes); // Denúncia de comentários
+server.use('/api/notificacoes', notificationRoutes);
+server.use('/api/perfil', perfilRoutes); // Perfil completo e editável (ONG e doador) // Notificações (novas publicações de quem você segue)
 server.use('/api/chat', chatRoutes);
 
 const PORT = process.env.PORT || door;
