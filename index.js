@@ -64,7 +64,7 @@ server.use('/api/donor', donorRoutes);
 server.use('/api/followers', followerRoutes);
 server.use('/api/comentarios', commentReportRoutes); // Denúncia de comentários
 server.use('/api/notificacoes', notificationRoutes);
-server.use('/api/perfil', perfilRoutes); // Perfil completo e editável (ONG e doador) // Notificações (novas publicações de quem você segue)
+server.use('/api/perfil', perfilRoutes); // Perfil completo e editável (ONG e doador) // Chaves Pix (remetente do doador / recebimento da ONG) // Notificações (novas publicações de quem você segue)
 server.use('/api/chat', chatRoutes);
 
 const PORT = process.env.PORT || door;

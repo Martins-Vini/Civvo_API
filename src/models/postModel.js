@@ -168,7 +168,8 @@ class PostModel {
     }
 
     // Excluir comentário (soft delete, mesmo padrão de is_active usado no resto do app).
-    // Quem pode: ADMIN, quem escreveu o comentário, ou a ONG dona da publicação (moderação).
+    // Quem pode: ADMIN, quem escreveu o comentário, ou a ONG dona da publicação (moderação:
+    // a dona é descoberta pelo usuário logado, sem depender de o token trazer o id da ONG).
     // Em cascata: as respostas (e as respostas das respostas) saem junto com o comentário.
     static async deleteComment(postId, commentId, userId, ongId, userType) {
         const connection = await pool.getConnection();
@@ -186,8 +187,9 @@ class PostModel {
                     `SELECT c.id FROM POST_COMMENT c
                      JOIN POSTS p ON p.id = c.post_id
                      WHERE c.id = ? AND c.post_id = ? AND c.is_active = TRUE
-                       AND (c.user_id = ? OR p.ong_id = ?)`,
-                    [commentId, postId, userId, ongId ?? 0]
+                       AND (c.user_id = ? OR p.ong_id = ?
+                            OR p.ong_id IN (SELECT id FROM ONGS_PROFILES WHERE user_id = ?))`,
+                    [commentId, postId, userId, ongId ?? 0, userId]
                 );
             }
 
