@@ -41,6 +41,7 @@ const corsOptions = {
 const io = new Server(httpServer, {
   cors: corsOptions
 });
+server.set('io', io); // permite que as rotas REST do chat emitam eventos em tempo real
 
 // Ativa os eventos do chat em tempo real
 setupChatSocket(io);

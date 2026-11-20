@@ -155,6 +155,7 @@ export const PerfilModel = {
         const end = await enderecoDe(pool, o.user_id);
         return {
             ong_id: o.id,
+            user_id: o.user_id, // USERS.id da ONG: usado pelo chat
             nome_fantasia: o.nome_fantasia,
             razao_social: o.razao_social,
             cnpj: o.cnpj,

@@ -6,14 +6,18 @@ import streamifier from 'streamifier';
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Função auxiliar que envia o buffer para o Cloudinary e retorna a URL segura
-const uploadToCloudinary = (fileBuffer) => {
+// Upload do chat: mesmo esquema, mas com limite de 20 MB (o front também limita em 20 MB)
+const uploadChat = multer({ storage: storage, limits: { fileSize: 20 * 1024 * 1024 } });
+
+// Envia o buffer para o Cloudinary e retorna a URL segura.
+// resourceType: 'image' (padrão, como antes) | 'auto' (aceita áudio, vídeo e PDF — usado no chat)
+const uploadToCloudinary = (fileBuffer, resourceType = 'image') => {
     return new Promise((resolve, reject) => {
         let stream = cloudinary.uploader.upload_stream(
-            { folder: 'civvo_uploads' }, // Nome da pasta que será criada no seu Cloudinary
+            { folder: 'civvo_uploads', resource_type: resourceType },
             (error, result) => {
                 if (result) {
-                    resolve(result.secure_url); // Retorna a URL pública HTTPS da imagem
+                    resolve(result.secure_url);
                 } else {
                     reject(error);
                 }
@@ -23,4 +27,4 @@ const uploadToCloudinary = (fileBuffer) => {
     });
 };
 
-export { upload, uploadToCloudinary };
+export { upload, uploadChat, uploadToCloudinary };

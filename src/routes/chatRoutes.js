@@ -1,46 +1,82 @@
 import express from 'express';
 import { pool } from '../config/conexao.js';
-import {  verificarToken} from '../middlewares/authMiddleware.js'; // ajuste conforme seu middleware
+import { verificarToken } from '../middlewares/authMiddleware.js';
+import { uploadChat, uploadToCloudinary } from '../middlewares/uploadMiddleware.js';
+import { ChatModel } from '../models/chatModel.js';
 
 const router = express.Router();
+const meuId = (req) => Number(req.user.userId ?? req.user.id);
+
+const MIMES = /^(image|video|audio)\/|^application\/(pdf|msword|vnd\.|octet-stream)|^text\/plain/;
 
 router.post('/conversation', verificarToken, async (req, res) => {
     try {
-        const senderId = req.user.id;
-        const { receiverId } = req.body;
+        const senderId = meuId(req);
+        const receiverId = Number(req.body.receiverId);
+        if (!receiverId || receiverId === senderId) return res.status(400).json({ error: 'Destinatário inválido.' });
 
-        // 1. Validar a regra de negócio no backend: Doador x Doador proibido
-        const [users] = await pool.query('SELECT id, user_type FROM USERS WHERE id IN (?, ?)', [senderId, receiverId]);
-        if (users.length === 2) {
-            const u1 = users.find(u => u.id === Number(senderId));
-            const u2 = users.find(u => u.id === Number(receiverId));
-            if (u1.user_type === 'DOADOR' && u2.user_type === 'DOADOR') {
-                return res.status(403).json({ error: 'Doadores não podem iniciar chat diretamente com outros doadores.' });
-            }
+        const [users] = await pool.query(
+            'SELECT id, user_type FROM USERS WHERE id IN (?, ?) AND is_active = TRUE', [senderId, receiverId]);
+        const u1 = users.find((u) => u.id === senderId);
+        const u2 = users.find((u) => u.id === receiverId);
+        if (!u1 || !u2) return res.status(404).json({ error: 'Usuário não encontrado.' });
+        if (u1.user_type === 'ADMIN' || u2.user_type === 'ADMIN') return res.status(403).json({ error: 'Conversa não permitida.' });
+        if (u1.user_type === 'DOADOR' && u2.user_type === 'DOADOR') {
+            return res.status(403).json({ error: 'Doadores não podem iniciar chat diretamente com outros doadores.' });
         }
 
-        // 2. Buscar ou criar a conversa na tabela CHAT_CONVERSATIONS
-        const [one, two] = senderId < receiverId ? [senderId, receiverId] : [receiverId, senderId];
-        
-        let [existing] = await pool.query(
-            'SELECT id FROM CHAT_CONVERSATIONS WHERE user_one_id = ? AND user_two_id = ?',
-            [one, two]
-        );
+        const conversationId = await ChatModel.getOrCreateConversation(senderId, receiverId);
+        return res.json({ conversationId });
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+});
 
-        let conversationId;
-        if (existing.length > 0) {
-            conversationId = existing[0].id;
-        } else {
-            const [result] = await pool.query(
-                'INSERT INTO CHAT_CONVERSATIONS (user_one_id, user_two_id) VALUES (?, ?)',
-                [one, two]
-            );
-            conversationId = result.insertId;
+router.get('/conversations', verificarToken, async (req, res) => {
+    try {
+        return res.json(await ChatModel.listarConversas(meuId(req)));
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/conversations/:id/messages', verificarToken, async (req, res) => {
+    try {
+        if (!(await ChatModel.participa(req.params.id, meuId(req)))) {
+            return res.status(403).json({ error: 'Você não participa desta conversa.' });
         }
+        return res.json(await ChatModel.getMessages(Number(req.params.id)));
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+});
 
-        return res.status(200).json({ conversationId });
-    } catch (error) {
-        return res.status(500).json({ error: error.message });
+router.put('/conversations/:id/read', verificarToken, async (req, res) => {
+    try {
+        const eu = meuId(req);
+        const conv = await ChatModel.participa(req.params.id, eu);
+        if (!conv) return res.status(403).json({ error: 'Você não participa desta conversa.' });
+
+        const n = await ChatModel.marcarLidas(conv.id, eu);
+        if (n > 0) {
+            const outro = conv.user_one_id === eu ? conv.user_two_id : conv.user_one_id;
+            req.app.get('io')?.to(`user_${outro}`).emit('messages_read', { conversationId: conv.id });
+        }
+        return res.json({ ok: true });
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/upload', verificarToken, uploadChat.single('file'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+        if (!MIMES.test(req.file.mimetype)) return res.status(400).json({ error: 'Tipo de arquivo não permitido.' });
+
+        const url = await uploadToCloudinary(req.file.buffer, 'auto');
+        return res.json({ url, name: req.file.originalname, size: req.file.size });
+    } catch (e) {
+        return res.status(500).json({ error: 'Não foi possível enviar o arquivo.' });
     }
 });
 
