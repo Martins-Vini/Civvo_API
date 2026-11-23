@@ -241,6 +241,13 @@ class PostController {
         try {
             const { postId } = req.params;
             const userId = req.user?.userId || req.user?.id || req.userId;
+            const userType = req.user?.userType || req.user?.user_type;
+
+            if (userType === 'ONG') {
+                return res.status(403).json({
+                    error: 'ONGs não se candidatam a vagas de voluntariado. Envie uma solicitação de parceria para a ONG responsável.',
+                });
+            }
 
             const applicationId = await PostModel.applyVolunteer(postId, userId);
             return res.status(201).json({ message: "Candidatura realizada com sucesso!", applicationId });

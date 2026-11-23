@@ -47,6 +47,19 @@ export const PerfilController = {
         }
     },
 
+    /* GET /perfil/doador/:userId  (perfil público do doador, USERS.id) */
+    async doadorPublico(req, res) {
+        try {
+            const id = Number(req.params.userId);
+            if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Doador inválido.' });
+            const p = await PerfilModel.obterDoadorPublico(id);
+            if (!p) return res.status(404).json({ error: 'Doador não encontrado.' });
+            return res.json(p);
+        } catch (error) {
+            return responderErro(res, error);
+        }
+    },
+
     /* POST /perfil/imagem  (multipart: image, tipo = avatar | banner) */
     async imagem(req, res) {
         try {

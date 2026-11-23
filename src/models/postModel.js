@@ -1,4 +1,7 @@
 import { pool } from '../config/conexao.js';
+import { SQL_ONG_VERIFICADA } from '../utils/verificationSql.js';
+
+const require_is_verified = () => `${SQL_ONG_VERIFICADA} AS is_verified`;
 
 class PostModel {
     static async createPost(ongId, postData, mediaList = [], campaignData = null, volunteerData = null) {
@@ -69,11 +72,27 @@ class PostModel {
                 p.created_at,
                 o.nome_fantasia AS ong_nome,
                 o.logo_url AS ong_avatar,
+                ${require_is_verified()},
+                p.partner_ong_id,
+                po.nome_fantasia AS partner_ong_nome,
+                po.logo_url AS partner_ong_avatar,
                 (SELECT COUNT(*) FROM USER_FOLLOWERS uf WHERE uf.following_id = o.user_id) AS ong_seguidores,
                 (SELECT COUNT(*) FROM POST_LIKE pl WHERE pl.post_id = p.id) AS total_likes,
-                (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS total_comments
+                (SELECT COUNT(*) FROM POST_COMMENT pc WHERE pc.post_id = p.id AND pc.is_active = TRUE) AS total_comments,
+                cd.id AS campaign_id,
+                cd.meta_valor,
+                cd.valor_atual,
+                cd.data_limite,
+                cd.status AS campanha_status,
+                vd.id AS volunteer_id,
+                vd.vagas_disponiveis,
+                vd.data_limite_inscricao,
+                (SELECT COUNT(*) FROM VOLUNTEER_APPLICATIONS va WHERE va.post_id = p.id) AS vagas_preenchidas
             FROM POSTS p
             JOIN ONGS_PROFILES o ON p.ong_id = o.id
+            LEFT JOIN ONGS_PROFILES po ON po.id = p.partner_ong_id
+            LEFT JOIN CAMPAIGN_DETAILS cd ON cd.post_id = p.id
+            LEFT JOIN VOLUNTARIADO_DETAILS vd ON vd.post_id = p.id
             WHERE p.is_active = TRUE
             ORDER BY p.created_at DESC
         `);
@@ -304,6 +323,11 @@ class PostModel {
         const connection = await pool.getConnection();
         try {
             await connection.beginTransaction();
+
+            const [[usuario]] = await connection.query(`SELECT user_type FROM USERS WHERE id = ?`, [userId]);
+            if (usuario?.user_type === 'ONG') {
+                throw new Error('ONGs não se candidatam a vagas de voluntariado. Envie uma solicitação de parceria.');
+            }
 
             const [volunteer] = await connection.query(
                 `SELECT vagas_disponiveis FROM VOLUNTARIADO_DETAILS WHERE post_id = ?`,

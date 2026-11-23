@@ -16,6 +16,8 @@ import commentReportRoutes from './src/routes/commentReportRoutes.js';
 import perfilRoutes from './src/routes/perfilRoutes.js';
 import setupChatSocket from './src/services/chatSocket.js';
 import chatRoutes from './src/routes/chatRoutes.js';
+import partnershipRoutes from './src/routes/partnershipRoutes.js';
+import searchRoutes from './src/routes/searchRoutes.js';
 
 const server = express();                  // O teu express mantido intacto
 const httpServer = createServer(server);   // Servidor HTTP necessário para o WebSocket
@@ -67,6 +69,8 @@ server.use('/api/comentarios', commentReportRoutes); // Denúncia de comentário
 server.use('/api/notificacoes', notificationRoutes);
 server.use('/api/perfil', perfilRoutes); // Perfil completo e editável (ONG e doador) // Chaves Pix (remetente do doador / recebimento da ONG) // Notificações (novas publicações de quem você segue)
 server.use('/api/chat', chatRoutes);
+server.use('/api/parcerias', partnershipRoutes); // Solicitações de parceria entre ONGs (substitui "voluntariado" entre ONGs)
+server.use('/api/buscar', searchRoutes); // Busca unificada (ONGs e Doadores)
 
 const PORT = process.env.PORT || door;
 

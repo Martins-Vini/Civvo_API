@@ -19,5 +19,6 @@ router.get('/me', verificarToken, PerfilController.meu);
 router.put('/me', verificarToken, PerfilController.atualizar);
 router.post('/imagem', verificarToken, receberImagem, PerfilController.imagem);
 router.get('/ong/:ongId', verificarToken, PerfilController.ongPublico);
+router.get('/doador/:userId', verificarToken, PerfilController.doadorPublico);
 
 export default router;

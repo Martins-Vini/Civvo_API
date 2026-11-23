@@ -83,6 +83,30 @@ async function redesDeOng(db, userId) {
     return redes;
 }
 
+/* Selo de verificado: true quando a ONG preencheu as 13 pendências do perfil
+   (mesma lista usada no front em pendenciasOng()/PEND_TOTAL). Calculado na hora,
+   sem coluna no banco, para nunca ficar desatualizado. */
+function ongEstaVerificada(o, { endereco, telefone, redes }) {
+    if (!o) return false;
+    const preenchido = (v) => !!String(v ?? '').trim();
+    const temRede = Object.values(redes || {}).some((u) => preenchido(u));
+    return (
+        preenchido(o.logo_url) &&
+        (preenchido(o.banner_url) || preenchido(o.banner_cor)) &&
+        preenchido(o.historia) &&
+        preenchido(o.causas_atendidas) &&
+        preenchido(o.cnae) &&
+        preenchido(o.chave_pix) &&
+        preenchido(o.missao) &&
+        preenchido(o.objetivos) &&
+        preenchido(o.gestao) &&
+        preenchido(o.governanca) &&
+        !!endereco &&
+        !!telefone &&
+        temRede
+    );
+}
+
 export const PerfilModel = {
     async tipoDoUsuario(userId) {
         const [r] = await pool.query('SELECT user_type FROM USERS WHERE id = ?', [userId]);
@@ -97,6 +121,9 @@ export const PerfilModel = {
             const [r] = await pool.query('SELECT * FROM ONGS_PROFILES WHERE user_id = ?', [userId]);
             if (!r.length) return null;
             const o = r[0];
+            const endereco = await enderecoDe(pool, userId);
+            const telefone = await telefoneDe(pool, userId);
+            const redes = await redesDeOng(pool, userId);
             return {
                 tipo: 'ONG',
                 ong_id: o.id,
@@ -116,9 +143,10 @@ export const PerfilModel = {
                 governanca: o.governanca ?? null,
                 nivel_transparencia: o.nivel_transparencia,
                 plano_tipo: o.plano_tipo,
-                endereco: await enderecoDe(pool, userId),
-                telefone: await telefoneDe(pool, userId),
-                redes: await redesDeOng(pool, userId),
+                is_verified: ongEstaVerificada(o, { endereco, telefone, redes }),
+                endereco,
+                telefone,
+                redes,
             };
         }
 
@@ -153,6 +181,8 @@ export const PerfilModel = {
         if (!r.length) return null;
         const o = r[0];
         const end = await enderecoDe(pool, o.user_id);
+        const telefone = await telefoneDe(pool, o.user_id);
+        const redes = await redesDeOng(pool, o.user_id);
         return {
             ong_id: o.id,
             user_id: o.user_id, // USERS.id da ONG: usado pelo chat
@@ -170,9 +200,37 @@ export const PerfilModel = {
             gestao: o.gestao ?? null,
             governanca: o.governanca ?? null,
             nivel_transparencia: o.nivel_transparencia,
+            chave_pix: o.chave_pix || null, // precisa ir pro público: é a chave que o doador usa para doar
+            is_verified: ongEstaVerificada(o, { endereco: end, telefone, redes }),
             cidade: end ? end.cidade : null,
             estado: end ? end.estado : null,
-            redes: await redesDeOng(pool, o.user_id),
+            redes,
+        };
+    },
+
+    /* perfil público de um doador (sem CPF e sem endereço/telefone completos) */
+    async obterDoadorPublico(userId) {
+        const [r] = await pool.query(
+            `SELECT d.* FROM DOADORES_PROFILES d WHERE d.user_id = ? AND d.is_active = TRUE`,
+            [userId]
+        );
+        if (!r.length) return null;
+        const d = r[0];
+        const end = await enderecoDe(pool, userId);
+        return {
+            user_id: userId, // USERS.id do doador: usado pelo chat
+            nome: d.nome,
+            sobrenome: d.sobrenome,
+            apelido_unico: d.apelido_unico,
+            bio: d.bio,
+            avatar_url: d.avatar_url,
+            banner_url: d.banner_url ?? null,
+            banner_cor: d.banner_cor ?? null,
+            causas: jsonDe(d.causas_interesse, []),
+            voluntariados_publicos: d.voluntariados_publicos == null ? true : !!d.voluntariados_publicos,
+            cidade: end ? end.cidade : null,
+            estado: end ? end.estado : null,
+            redes: jsonDe(d.redes_sociais, {}),
         };
     },
 

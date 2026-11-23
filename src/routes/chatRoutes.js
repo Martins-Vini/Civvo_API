@@ -3,6 +3,7 @@ import { pool } from '../config/conexao.js';
 import { verificarToken } from '../middlewares/authMiddleware.js';
 import { uploadChat, uploadToCloudinary } from '../middlewares/uploadMiddleware.js';
 import { ChatModel } from '../models/chatModel.js';
+import { NotificationModel } from '../models/notificationModel.js';
 
 const router = express.Router();
 const meuId = (req) => Number(req.user.userId ?? req.user.id);
@@ -25,10 +26,41 @@ router.post('/conversation', verificarToken, async (req, res) => {
             return res.status(403).json({ error: 'Doadores não podem iniciar chat diretamente com outros doadores.' });
         }
 
-        const conversationId = await ChatModel.getOrCreateConversation(senderId, receiverId);
-        return res.json({ conversationId });
+        const conv = await ChatModel.getOrCreateConversation(senderId, receiverId);
+
+        if (conv.isNew && conv.status === 'PENDENTE') {
+            // avisa quem recebeu o pedido de conversa (vai pras notificações dela)
+            const ongDoReceptor = u2.user_type === 'ONG'
+                ? (await pool.query('SELECT id FROM ONGS_PROFILES WHERE user_id = ?', [receiverId]))[0][0]?.id
+                : null;
+            const ongDoRemetente = u1.user_type === 'ONG'
+                ? (await pool.query('SELECT id FROM ONGS_PROFILES WHERE user_id = ?', [senderId]))[0][0]?.id
+                : null;
+            await NotificationModel.criar({
+                userId: receiverId,
+                type: 'CHAT_REQUEST',
+                ongId: ongDoReceptor || ongDoRemetente || null, // precisa de uma ONG por causa do schema antigo; prioriza a do destinatário
+                actorUserId: senderId,
+                conversationId: conv.id,
+            });
+            req.app.get('io')?.to(`user_${receiverId}`).emit('chat_request', { conversationId: conv.id, fromUserId: senderId });
+        }
+
+        return res.json({ conversationId: conv.id, status: conv.status, requestedByMe: conv.requestedBy === senderId });
     } catch (e) {
         return res.status(500).json({ error: e.message });
+    }
+});
+
+router.put('/conversations/:id/aceitar', verificarToken, async (req, res) => {
+    try {
+        const eu = meuId(req);
+        const conv = await ChatModel.aceitarConversa(req.params.id, eu);
+        const outro = conv.user_one_id === eu ? conv.user_two_id : conv.user_one_id;
+        req.app.get('io')?.to(`user_${outro}`).emit('chat_request_aceita', { conversationId: conv.id });
+        return res.json({ ok: true, status: 'ACEITA' });
+    } catch (e) {
+        return res.status(400).json({ error: e.message });
     }
 });
 

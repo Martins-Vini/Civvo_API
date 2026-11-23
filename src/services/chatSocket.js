@@ -2,7 +2,8 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../config/conexao.js';
 import { ChatModel } from '../models/chatModel.js';
 
-const TIPOS = ['text', 'image', 'audio', 'video', 'file'];
+const TIPOS = ['text', 'image', 'audio', 'video', 'file', 'post_share', 'profile_share', 'moment_reply', 'moment_share'];
+const TIPOS_MOMENTO = ['moment_reply', 'moment_share'];
 
 export default function setupChatSocket(io) {
     // Autenticação: só entra quem tem JWT válido. O id do usuário vem SEMPRE do token.
@@ -40,10 +41,35 @@ export default function setupChatSocket(io) {
             };
 
             try {
-                const conv = await ChatModel.participa(data.conversationId, userId);
+                // momento (só ativo e não expirado)
+                let momento = null;
+                if (TIPOS_MOMENTO.includes(data.mediaType)) {
+                    const [mo] = await pool.query(
+                        `SELECT mo.id, mo.media_url, op.user_id AS owner_user_id
+                           FROM MOMENTS mo JOIN ONGS_PROFILES op ON op.id = mo.ong_id
+                          WHERE mo.id = ? AND mo.is_active = TRUE AND mo.expires_at > NOW()`,
+                        [Number(data.momentId)]);
+                    if (!mo.length) return falhar('Momento não encontrado ou expirado.');
+                    momento = mo[0];
+                }
+
+                let conv;
+                if (momento && data.mediaType === 'moment_reply' && !data.conversationId) {
+                    // responder sem conversa aberta: cria o pedido de conversa com quem publicou
+                    if (momento.owner_user_id === userId) return falhar('Você não pode responder ao seu próprio momento.');
+                    const c = await ChatModel.getOrCreateConversation(userId, momento.owner_user_id);
+                    conv = await ChatModel.participa(c.id, userId);
+                } else {
+                    conv = await ChatModel.participa(data.conversationId, userId);
+                }
                 if (!conv) return falhar('Você não participa desta conversa.');
 
                 const receiverId = conv.user_one_id === userId ? conv.user_two_id : conv.user_one_id;
+
+                // resposta a momento só vale para quem publicou o momento
+                if (data.mediaType === 'moment_reply' && momento.owner_user_id !== receiverId) {
+                    return falhar('A resposta precisa ir para quem publicou o momento.');
+                }
 
                 const [r] = await pool.query('SELECT user_type FROM USERS WHERE id = ? AND is_active = TRUE', [receiverId]);
                 if (!r.length) return falhar('Destinatário indisponível.');
@@ -53,11 +79,35 @@ export default function setupChatSocket(io) {
 
                 const content = String(data.content || '').trim();
                 const mediaType = TIPOS.includes(data.mediaType) ? data.mediaType : 'text';
-                const mediaUrl = data.mediaUrl && /^https:\/\//i.test(data.mediaUrl) ? data.mediaUrl : null;
+                let mediaUrl = data.mediaUrl && /^https:\/\//i.test(data.mediaUrl) ? data.mediaUrl : null;
+
+                let sharedPostId = null, sharedProfileType = null, sharedProfileId = null, momentId = null;
+
+                if (mediaType === 'post_share') {
+                    const [p] = await pool.query('SELECT id FROM POSTS WHERE id = ?', [Number(data.sharedPostId)]);
+                    if (!p.length) return falhar('Publicação não encontrada.');
+                    sharedPostId = p[0].id;
+                } else if (mediaType === 'profile_share') {
+                    const tipo = data.sharedProfileType === 'DOADOR' ? 'DOADOR' : 'ONG';
+                    if (tipo === 'ONG') {
+                        const [o] = await pool.query('SELECT id FROM ONGS_PROFILES WHERE id = ?', [Number(data.sharedProfileId)]);
+                        if (!o.length) return falhar('Perfil não encontrado.');
+                        sharedProfileId = o[0].id;
+                    } else {
+                        const [d] = await pool.query('SELECT user_id FROM DOADORES_PROFILES WHERE user_id = ?', [Number(data.sharedProfileId)]);
+                        if (!d.length) return falhar('Perfil não encontrado.');
+                        sharedProfileId = d[0].user_id;
+                    }
+                    sharedProfileType = tipo;
+                } else if (TIPOS_MOMENTO.includes(mediaType)) {
+                    momentId = momento.id;
+                    mediaUrl = momento.media_url; // vem do servidor, nunca do cliente
+                    if (mediaType === 'moment_reply' && !content) return falhar('Escreva uma resposta.');
+                }
 
                 if (content.length > 2000) return falhar('A mensagem excede o limite de 2000 caracteres.');
-                if (!content && !mediaUrl) return falhar('Mensagem vazia.');
-                if (mediaType !== 'text' && !mediaUrl) return falhar('Arquivo não encontrado.');
+                if (!content && !mediaUrl && !sharedPostId && !sharedProfileId && !momentId) return falhar('Mensagem vazia.');
+                if (['image', 'audio', 'video', 'file'].includes(mediaType) && !mediaUrl) return falhar('Arquivo não encontrado.');
 
                 const m = await ChatModel.saveMessage({
                     conversationId: conv.id,
@@ -68,6 +118,10 @@ export default function setupChatSocket(io) {
                     mediaName: data.mediaName ? String(data.mediaName).slice(0, 255) : null,
                     mediaSize: Number(data.mediaSize) || null,
                     audioSeconds: mediaType === 'audio' ? Math.min(60, Number(data.audioSeconds) || 1) : null,
+                    sharedPostId,
+                    sharedProfileType,
+                    sharedProfileId,
+                    momentId,
                 });
 
                 const payload = {
@@ -82,6 +136,11 @@ export default function setupChatSocket(io) {
                     audioSeconds: m.audio_duration_seconds,
                     mediaName: m.media_name,
                     mediaSize: m.media_size,
+                    sharedPostId: m.shared_post_id,
+                    sharedProfileType: m.shared_profile_type,
+                    sharedProfileId: m.shared_profile_id,
+                    momentId: m.moment_id,
+                    moment: m.moment,
                     isRead: false,
                     createdAt: m.created_at,
                 };
