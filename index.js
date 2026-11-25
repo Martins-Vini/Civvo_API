@@ -18,6 +18,7 @@ import setupChatSocket from './src/services/chatSocket.js';
 import chatRoutes from './src/routes/chatRoutes.js';
 import partnershipRoutes from './src/routes/partnershipRoutes.js';
 import searchRoutes from './src/routes/searchRoutes.js';
+import { iniciarCron } from './src/services/cronService.js';
 
 const server = express();                  // O teu express mantido intacto
 const httpServer = createServer(server);   // Servidor HTTP necessário para o WebSocket
@@ -77,4 +78,5 @@ const PORT = process.env.PORT || door;
 // O listen é chamado no httpServer para subir o Express e o WebSocket juntos
 httpServer.listen(PORT, () => {
     console.log(`Servidor ligado na rota http://localhost:${PORT}`);
+    iniciarCron(); // expira doações pendentes vencidas
 });
