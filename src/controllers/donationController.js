@@ -51,7 +51,8 @@ export default class DonationController {
             await DonationModel.sincronizarComGateway(info);
             return res.status(200).json({ ok: true });
         } catch (error) {
-            if (error.status === 401) return res.status(401).json({ error: 'Assinatura inválida.' });
+            /* só a assinatura inválida vira 401 (um 401 do próprio gateway, ex.: token errado, é erro nosso: 500) */
+            if (error.codigo === 'ASSINATURA_INVALIDA') return res.status(401).json({ error: 'Assinatura inválida.' });
             console.error('Erro no webhook de pagamento:', error);
             /* 500 faz o gateway tentar de novo mais tarde */
             return res.status(500).json({ error: 'Erro ao processar o aviso de pagamento.' });
@@ -61,14 +62,15 @@ export default class DonationController {
     /* GET /api/donations/retorno/:id  (público: o gateway devolve o doador do cartão para cá,
        e daqui ele segue para o comprovante no front) */
     static retorno(req, res) {
-        const front = String(process.env.FRONT_URL || 'http://localhost:5173').replace(/\/+$/, '');
+        const front = String(process.env.FRONT_URL || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')).replace(/\/+$/, '');
+        if (!front) return res.status(500).json({ error: 'FRONT_URL não configurada.' });
         if (!idValido(req.params.id)) return res.redirect(302, front);
         return res.redirect(302, `${front}/#/recibo/${req.params.id}`);
     }
 
     /* POST /api/donations/:id/simular-pagamento  (só com PAYMENT_PROVIDER=mock e fora de produção) */
     static async simularPagamento(req, res) {
-        if (gateway.nomeProvedor() !== 'mock' || process.env.NODE_ENV === 'production') {
+        if (!gateway.ehMock() || process.env.NODE_ENV === 'production') {
             return res.status(404).json({ error: 'Rota não encontrada.' });
         }
         try {

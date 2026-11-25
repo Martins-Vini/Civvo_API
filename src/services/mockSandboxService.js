@@ -29,6 +29,10 @@ export async function consultarPagamento() {
     return null;
 }
 
+export async function consultarPorReferencia() {
+    return null;
+}
+
 export function interpretarWebhook() {
     return null;
 }

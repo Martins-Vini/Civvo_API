@@ -15,9 +15,44 @@ import * as mock from './mockSandboxService.js';
 
 const MP_BASE = 'https://api.mercadopago.com';
 
-const provedor = () => String(process.env.PAYMENT_PROVIDER || 'mock').toLowerCase();
+/* Escolha do provedor, à prova de erro de configuração:
+   - em PRODUÇÃO não existe "mock" e a variável é obrigatória (antes, esquecer ou errar o valor
+     caía no mock em silêncio, e a rota de simulação deixava qualquer um "pagar" sem pagar);
+   - valor desconhecido (ex.: "mercadopag0") dá erro claro em vez de virar mock. */
+const provedor = () => {
+    const bruto = String(process.env.PAYMENT_PROVIDER || '').trim().toLowerCase();
+    const producao = process.env.NODE_ENV === 'production';
 
-export const nomeProvedor = () => (provedor() === 'mercadopago' ? 'mercadopago' : 'mock');
+    if (!bruto) {
+        if (producao) throw new Error('PAYMENT_PROVIDER não configurado (use "mercadopago").');
+        return 'mock';
+    }
+    if (bruto === 'mercadopago') return 'mercadopago';
+    if (bruto === 'mock') {
+        if (producao) throw new Error('PAYMENT_PROVIDER=mock não é permitido em produção.');
+        return 'mock';
+    }
+    throw new Error(`PAYMENT_PROVIDER inválido: "${bruto}". Use "mercadopago" ou "mock".`);
+};
+
+export const nomeProvedor = () => provedor();
+
+/* true só no mock e fora de produção; nunca lança erro */
+export const ehMock = () => {
+    try {
+        return provedor() === 'mock';
+    } catch {
+        return false;
+    }
+};
+
+/* external_reference com prefixo: um pagamento de outro sistema na mesma conta do Mercado Pago
+   (ex.: referência "5") não pode ser confundido com a doação 5 */
+export const referenciaDaDoacao = (id) => `civvo-doacao-${id}`;
+export const idDaReferencia = (ref) => {
+    const m = /^civvo-doacao-(\d+)$/.exec(String(ref || ''));
+    return m ? Number(m[1]) : null;
+};
 
 /* ============================ Mercado Pago ============================ */
 
@@ -74,7 +109,7 @@ async function mpCriarCobranca({ id, valor, metodo, cpf, email, nome, descricao,
                 transaction_amount: valor,
                 description: descricao,
                 payment_method_id: 'pix',
-                external_reference: String(id),
+                external_reference: referenciaDaDoacao(id),
                 notification_url: notificationUrl(),
                 date_of_expiration: dataComFusoBR(expiraEm),
                 payer: {
@@ -102,10 +137,14 @@ async function mpCriarCobranca({ id, valor, metodo, cpf, email, nome, descricao,
     }
 
     /* cartão: Checkout Pro (página do MP; os dados do cartão nunca passam pelo Civvo) */
+    /* back_urls + auto_return exigem https: em desenvolvimento use um túnel (ngrok) em API_PUBLIC_URL */
+    if (!/^https:\/\//i.test(apiPublica())) {
+        throw new Error('API_PUBLIC_URL (https) é obrigatória para pagamento com cartão.');
+    }
     const retorno = `${apiPublica()}/api/donations/retorno/${id}`;
     const pref = await mpFetch('POST', '/checkout/preferences', {
         items: [{ id: String(id), title: descricao, quantity: 1, unit_price: valor, currency_id: 'BRL' }],
-        external_reference: String(id),
+        external_reference: referenciaDaDoacao(id),
         notification_url: notificationUrl(),
         payer: { email },
         back_urls: { success: retorno, failure: retorno, pending: retorno },
@@ -152,6 +191,27 @@ async function mpConsultarPagamento(paymentId) {
     }
 }
 
+/* Busca pelo external_reference (serve para Pix e cartão). Usada para conferir pagamentos quando
+   o aviso do webhook se perdeu ou ainda não chegou. */
+async function mpConsultarPorReferencia(ref) {
+    const r = await mpFetch(
+        'GET',
+        `/v1/payments/search?external_reference=${encodeURIComponent(ref)}&sort=date_created&criteria=desc&limit=10`
+    );
+    const lista = Array.isArray(r?.results) ? r.results : [];
+    if (!lista.length) return null;
+
+    const p = lista.find((x) => x.status === 'approved') || lista[0];
+    return {
+        status: mpTraduzStatus(p),
+        paymentId: String(p.id),
+        externalReference: p.external_reference || null,
+        valor: Number(p.transaction_amount)
+    };
+}
+
+let avisouSemSegredo = false;
+
 function mpInterpretarWebhook(req) {
     const body = req.body || {};
     const q = req.query || {};
@@ -163,6 +223,10 @@ function mpInterpretarWebhook(req) {
     if (!paymentId) return null;
 
     const segredo = process.env.MP_WEBHOOK_SECRET;
+    if (!segredo && !avisouSemSegredo) {
+        avisouSemSegredo = true;
+        console.warn('[pagamento] MP_WEBHOOK_SECRET não configurado: a assinatura do webhook NÃO está sendo conferida.');
+    }
     if (segredo) {
         const assinatura = String(req.headers['x-signature'] || '');
         const ts = (assinatura.match(/ts=([^,]+)/) || [])[1];
@@ -180,6 +244,7 @@ function mpInterpretarWebhook(req) {
         if (!ok) {
             const err = new Error('Assinatura do webhook inválida.');
             err.status = 401;
+            err.codigo = 'ASSINATURA_INVALIDA'; /* o controller só responde 401 por este código */
             throw err;
         }
     }
@@ -191,9 +256,15 @@ function mpInterpretarWebhook(req) {
 
 const impl = () =>
     provedor() === 'mercadopago'
-        ? { criarCobranca: mpCriarCobranca, consultarPagamento: mpConsultarPagamento, interpretarWebhook: mpInterpretarWebhook }
+        ? {
+              criarCobranca: mpCriarCobranca,
+              consultarPagamento: mpConsultarPagamento,
+              consultarPorReferencia: mpConsultarPorReferencia,
+              interpretarWebhook: mpInterpretarWebhook
+          }
         : mock;
 
 export const criarCobranca = (dados) => impl().criarCobranca(dados);
 export const consultarPagamento = (id) => impl().consultarPagamento(id);
+export const consultarPorReferencia = (ref) => impl().consultarPorReferencia(ref);
 export const interpretarWebhook = (req) => impl().interpretarWebhook(req);

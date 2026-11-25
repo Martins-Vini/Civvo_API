@@ -12,7 +12,11 @@ export class DonationError extends Error {
 const VALOR_MIN = 1;
 const VALOR_MAX = 50000;
 const MSG_MAX = 500;
-const EXPIRA_MIN = () => Number(process.env.DONATION_PIX_EXPIRES_MIN) || 30;
+/* o Mercado Pago exige prazo mínimo para o Pix (30 min): com exatamente 30 a cobrança pode ser recusada */
+const EXPIRA_MIN = () => Number(process.env.DONATION_PIX_EXPIRES_MIN) || 60;
+
+/* última conferência no gateway por doação (para o polling do front não martelar a API do gateway) */
+const ULTIMA_CONFERENCIA = new Map();
 
 function cpfValido(cpf) {
     const d = String(cpf || '').replace(/\D/g, '');
@@ -50,7 +54,7 @@ function formatar(r, incluirPagamento = false) {
         created_at: r.created_at,
         paid_at: r.paid_at,
         expires_at: r.expires_at,
-        projeto: r.projeto || 'Doação direta',
+        projeto: r.projeto || (r.campaign_id ? 'Campanha' : 'Doação direta'),
         ong_nome: r.ong_nome || '',
         ong_id: r.ong_id,
         post_id: r.post_id ?? null,
@@ -194,8 +198,10 @@ class DonationModel {
                 ]
             );
         } catch (e) {
-            console.error('Falha ao criar cobrança no gateway:', e.message);
-            /* nada foi cobrado: apaga o registro para a mesma chave poder tentar de novo */
+            console.error(`Falha ao criar cobrança no gateway (doação ${donationId}, referência ${gateway.referenciaDaDoacao(donationId)}):`, e.message);
+            /* nada foi cobrado: apaga o registro para a mesma chave poder tentar de novo.
+               Se a cobrança chegou a ser criada e só a resposta se perdeu, o aviso de pagamento dela
+               cai em "doação inexistente" e é registrado no log (ver aplicarPagamento). */
             await pool.query(`DELETE FROM DONATIONS WHERE id = ? AND status = 'PENDENTE'`, [donationId]);
             throw new DonationError(502, 'Não foi possível gerar o pagamento agora. Tente novamente em instantes.');
         }
@@ -212,6 +218,13 @@ class DonationModel {
     static async buscar(donorId, id) {
         let [rows] = await pool.query(`${SELECT_DOACAO} WHERE d.id = ? AND d.donor_id = ?`, [id, donorId]);
         if (!rows.length) throw new DonationError(404, 'Comprovante não encontrado.');
+
+        /* webhook atrasado/perdido (ou sem URL pública em desenvolvimento): confere no gateway,
+           no máximo 1 vez a cada 15 s por doação */
+        if (rows[0].status === 'PENDENTE' && rows[0].gateway_payment_id && !gateway.ehMock()) {
+            await DonationModel.conferirComLimite(rows[0].id);
+            [rows] = await pool.query(`${SELECT_DOACAO} WHERE d.id = ? AND d.donor_id = ?`, [id, donorId]);
+        }
 
         /* Pix vencido e ainda pendente: marca como expirado já na consulta */
         const r = rows[0];
@@ -308,13 +321,39 @@ class DonationModel {
        O status verdadeiro é consultado direto na API do gateway. */
     static async sincronizarComGateway({ eventId, paymentId }) {
         const pag = await gateway.consultarPagamento(paymentId);
+        return DonationModel.aplicarPagamento(pag, eventId);
+    }
+
+    /* confere uma doação pendente consultando o gateway pela referência */
+    static async conferirNoGateway(donationId) {
+        const pag = await gateway.consultarPorReferencia(gateway.referenciaDaDoacao(donationId));
+        return DonationModel.aplicarPagamento(pag, null);
+    }
+
+    static async conferirComLimite(donationId) {
+        const agora = Date.now();
+        if (agora - (ULTIMA_CONFERENCIA.get(donationId) || 0) < 15000) return;
+        ULTIMA_CONFERENCIA.set(donationId, agora);
+        try {
+            await DonationModel.conferirNoGateway(donationId);
+        } catch (e) {
+            console.error(`Falha ao conferir a doação ${donationId} no gateway:`, e.message);
+        }
+    }
+
+    /* aplica no banco o que o gateway diz (status verdadeiro, vindo da API dele) */
+    static async aplicarPagamento(pag, eventId) {
         if (!pag || !pag.externalReference) return { ignorado: true };
 
-        const donationId = Number(pag.externalReference);
-        if (!Number.isInteger(donationId)) return { ignorado: true };
+        const donationId = gateway.idDaReferencia(pag.externalReference);
+        if (!donationId) return { ignorado: true };
 
         const [rows] = await pool.query(`SELECT id, amount, gateway_payment_id FROM DONATIONS WHERE id = ?`, [donationId]);
-        if (!rows.length) return { ignorado: true };
+        if (!rows.length) {
+            /* ex.: a cobrança foi criada no gateway mas o registro foi apagado por falha na criação */
+            console.error(`ATENÇÃO: pagamento ${pag.paymentId} (${pag.status}) sem doação correspondente (${pag.externalReference}). Verifique manualmente.`);
+            return { ignorado: true };
+        }
 
         /* valor pago diferente do valor da doação: não credita, só registra */
         if (pag.valor != null && Math.abs(pag.valor - Number(rows[0].amount)) > 0.009) {
@@ -332,25 +371,41 @@ class DonationModel {
         let resultado = { mudou: false };
         if (pag.status !== 'PENDENTE') resultado = await DonationModel.aplicarStatus(donationId, pag.status);
 
-        await pool
-            .query(`INSERT IGNORE INTO PAYMENT_WEBHOOK_EVENTS (provider, event_id, payload) VALUES (?, ?, ?)`, [
-                gateway.nomeProvedor(),
-                String(eventId).slice(0, 100),
-                JSON.stringify({ paymentId, status: pag.status, donationId })
-            ])
-            .catch(() => {});
+        if (eventId) {
+            await pool
+                .query(`INSERT IGNORE INTO PAYMENT_WEBHOOK_EVENTS (provider, event_id, payload) VALUES (?, ?, ?)`, [
+                    gateway.nomeProvedor(),
+                    String(eventId).slice(0, 100),
+                    JSON.stringify({ paymentId: pag.paymentId, status: pag.status, donationId })
+                ])
+                .catch(() => {});
+        }
 
         return resultado;
     }
 
     /* usado pelo cron */
     static async expirarPendentes() {
-        const [r] = await pool.query(
-            `UPDATE DONATIONS SET status = 'EXPIRADO'
-              WHERE status = 'PENDENTE' AND expires_at IS NOT NULL AND expires_at < ?`,
+        const [rows] = await pool.query(
+            `SELECT id, gateway_payment_id FROM DONATIONS
+              WHERE status = 'PENDENTE' AND expires_at IS NOT NULL AND expires_at < ? LIMIT 50`,
             [new Date()]
         );
-        return r.affectedRows;
+
+        let n = 0;
+        for (const r of rows) {
+            try {
+                /* antes de expirar, vê se não foi paga e o aviso se perdeu */
+                if (r.gateway_payment_id && !gateway.ehMock()) await DonationModel.conferirNoGateway(r.id);
+
+                /* só muda se ainda estiver PENDENTE */
+                const x = await DonationModel.aplicarStatus(r.id, 'EXPIRADO');
+                if (x.mudou) n++;
+            } catch (e) {
+                console.error(`Erro ao expirar a doação ${r.id}:`, e.message);
+            }
+        }
+        return n;
     }
 
     /* usado só pelo provedor mock, para testar sem gateway */
