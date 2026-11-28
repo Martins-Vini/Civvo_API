@@ -15,24 +15,35 @@ export const idDoUsuario = (req) => {
 export const FollowerController = {
     async followUser(req, res) {
         try {
-            const followerId = req.user.id; // Assume middleware JWT pré-existente
-            const { followingId } = req.body;
+            const followerId = idDoUsuario(req);
+            if (!followerId) return res.status(401).json({ error: 'Sessão inválida. Entre novamente.' });
 
-            if (followerId === Number(followingId)) {
+            const followingId = Number(req.body?.followingId);
+            if (!Number.isInteger(followingId) || followingId <= 0) {
+                return res.status(400).json({ error: 'Usuário a seguir inválido.' });
+            }
+
+            if (followerId === followingId) {
                 return res.status(400).json({ error: 'Você não pode seguir a si mesmo.' });
             }
 
             await FollowerModel.follow(followerId, followingId);
             return res.status(201).json({ message: 'Seguido com sucesso!' });
         } catch (error) {
+            if (error.code === 'ER_DUP_ENTRY') return res.status(200).json({ message: 'Você já segue este usuário.' });
             return res.status(500).json({ error: error.message });
         }
     },
 
     async unfollowUser(req, res) {
         try {
-            const followerId = req.user.id;
-            const { followingId } = req.params;
+            const followerId = idDoUsuario(req);
+            if (!followerId) return res.status(401).json({ error: 'Sessão inválida. Entre novamente.' });
+
+            const followingId = Number(req.params.followingId);
+            if (!Number.isInteger(followingId) || followingId <= 0) {
+                return res.status(400).json({ error: 'Usuário inválido.' });
+            }
 
             await FollowerModel.unfollow(followerId, followingId);
             return res.status(200).json({ message: 'Deixou de seguir com sucesso.' });

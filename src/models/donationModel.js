@@ -408,6 +408,29 @@ class DonationModel {
         return n;
     }
 
+    /* Top doadores de uma ONG (só doações APROVADAS), para a sessão da ONG. Limite fixo em 5. */
+    static async principaisDoadores(ongId) {
+        const [rows] = await pool.query(
+            `SELECT dp.user_id, dp.nome, dp.sobrenome, dp.apelido_unico, dp.avatar_url,
+                    COUNT(*) AS total_doacoes, SUM(d.amount) AS total_valor
+             FROM DONATIONS d
+             JOIN DOADORES_PROFILES dp ON dp.user_id = d.donor_id
+             WHERE d.ong_id = ? AND d.status = 'APROVADO'
+             GROUP BY d.donor_id
+             ORDER BY total_valor DESC
+             LIMIT 5`,
+            [ongId]
+        );
+        return rows.map((r) => ({
+            user_id: r.user_id,
+            nome: [r.nome, r.sobrenome].filter(Boolean).join(' ') || 'Doador(a)',
+            apelido_unico: r.apelido_unico,
+            avatar_url: r.avatar_url,
+            total_doacoes: Number(r.total_doacoes),
+            total_valor: Number(r.total_valor)
+        }));
+    }
+
     /* usado só pelo provedor mock, para testar sem gateway */
     static async simularPagamento(donorId, id) {
         const [rows] = await pool.query(`SELECT id FROM DONATIONS WHERE id = ? AND donor_id = ?`, [id, donorId]);

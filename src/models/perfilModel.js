@@ -113,6 +113,14 @@ export const PerfilModel = {
         return r.length ? r[0].user_type : null;
     },
 
+    async obterOngIdPorUsuario(userId) {
+        const [r] = await pool.query(
+            'SELECT id FROM ONGS_PROFILES WHERE user_id = ? AND is_active = TRUE',
+            [userId]
+        );
+        return r.length ? r[0].id : null;
+    },
+
     /* dados completos do próprio usuário (para a tela de edição) */
     async obterMeu(userId) {
         const tipo = await this.tipoDoUsuario(userId);

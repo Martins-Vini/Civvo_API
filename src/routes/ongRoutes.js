@@ -3,6 +3,7 @@ import { OngAuthController } from '../controllers/ongController.js';
 import { verificarAutenticacaoOng } from '../middlewares/authOngMiddleware.js';
 import { verificarToken } from '../middlewares/authMiddleware.js';
 import { pool } from '../config/conexao.js'; // 1. Importação correta do pool
+import DonationModel from '../models/donationModel.js';
 
 const router = express.Router();
 
@@ -15,6 +16,17 @@ router.get('/perfil', verificarAutenticacaoOng, (req, res) => {
         userId: req.userId, 
         ongProfileId: req.ongProfileId 
     });
+});
+
+/* top 5 doadores (por valor aprovado) desta ONG, para a sessão logada como ONG */
+router.get('/principais-doadores', verificarAutenticacaoOng, async (req, res) => {
+    try {
+        const doadores = await DonationModel.principaisDoadores(req.ongProfileId);
+        return res.status(200).json({ doadores });
+    } catch (error) {
+        console.error('Erro ao buscar principais doadores:', error);
+        return res.status(500).json({ error: 'Erro ao buscar os principais doadores.' });
+    }
 });
 
 router.delete('/account', verificarToken, async (req, res) => {
